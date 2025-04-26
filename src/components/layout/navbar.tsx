@@ -8,6 +8,7 @@ export function Navbar() {
       <div className="flex items-center gap-6">
         <Link href="/" className="flex items-center gap-2">
           <PanelsTopLeft className="h-6 w-6" />
+
           <span className="font-semibold">开发控制台</span>
         </Link>
         <div className="flex items-center gap-4">

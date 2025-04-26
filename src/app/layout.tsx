@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { MainLayout } from '@/components/layout/main-layout'
+import { MainLayout } from '@/components/layout'
 import './globals.css'
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: '开发控制台',
-  description: '个人开发控制台应用',
+  title: 'DevConsole',
+  description: 'Marquez’s DevConsole',
 }
 
 export default function RootLayout({
