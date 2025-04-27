@@ -37,6 +37,7 @@ export const rebotTencent3Y = async () => {
       data,
     }
   } catch (err) {
+    console.error('rebotTencent3Y', err)
     return {
       isSuccess: false,
       data: err,
