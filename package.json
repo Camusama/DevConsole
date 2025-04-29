@@ -12,6 +12,7 @@
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.18.0",
     "@next/env": "^15.3.1",
     "@opennextjs/cloudflare": "1.0.0-beta.3",
     "@radix-ui/react-avatar": "^1.1.7",

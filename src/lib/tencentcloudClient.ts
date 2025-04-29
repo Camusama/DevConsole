@@ -4,30 +4,26 @@ import * as tencentcloud from 'tencentcloud-sdk-nodejs-lighthouse'
 
 // const projectDir = process.cwd()
 // loadEnvConfig(projectDir)
+const LighthouseClient = tencentcloud.lighthouse.v20200324.Client
 
-const createClient = () => {
-  const LighthouseClient = tencentcloud.lighthouse.v20200324.Client
+const SECRET_ID = process.env.TENCENTCLOUD_SECRET_ID as string
+const SECRET_KEY = process.env.TENCENTCLOUD_SECRET_KEY as string
 
-  const SECRET_ID = process.env.TENCENTCLOUD_SECRET_ID as string
-  const SECRET_KEY = process.env.TENCENTCLOUD_SECRET_KEY as string
-
-  // 实例化要请求产品的client对象,clientProfile是可选的
-  const client = new LighthouseClient({
-    credential: {
-      secretId: SECRET_ID,
-      secretKey: SECRET_KEY,
+// 实例化要请求产品的client对象,clientProfile是可选的
+const client = new LighthouseClient({
+  credential: {
+    secretId: SECRET_ID,
+    secretKey: SECRET_KEY,
+  },
+  region: 'ap-shanghai',
+  profile: {
+    httpProfile: {
+      endpoint: 'lighthouse.tencentcloudapi.com',
     },
-    region: 'ap-shanghai',
-    profile: {
-      httpProfile: {
-        endpoint: 'lighthouse.tencentcloudapi.com',
-      },
-    },
-  })
-  return client
-}
+  },
+})
+
 export const rebotTencent3Y = async () => {
-  const client = createClient()
   try {
     const data = await client.RebootInstances({
       InstanceIds: ['lhins-27vkwuua'],
@@ -37,7 +33,6 @@ export const rebotTencent3Y = async () => {
       data,
     }
   } catch (err) {
-    console.error('rebotTencent3Y', err)
     return {
       isSuccess: false,
       data: err,

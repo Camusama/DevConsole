@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/sidebar'
 
 // This is sample data.
-const data = {
+export const data = {
   user: {
     name: 'shadcn',
     email: 'm@example.com',
@@ -53,7 +53,7 @@ const data = {
   navMain: [
     {
       title: 'Monitors',
-      url: '',
+      url: '/',
       icon: SquareTerminal,
       isActive: true,
       items: [
@@ -62,28 +62,41 @@ const data = {
           url: '/nezha',
         },
         {
-          title: 'Uptime Kuma',
+          title: 'Uptime kuma',
           url: '/uptime-kuma',
         },
       ],
     },
     {
       title: 'Playground',
-      url: '#',
+      url: '/',
       icon: SquareTerminal,
       isActive: true,
       items: [
         {
-          title: 'History',
-          url: '#',
+          title: 'Home',
+          url: '/',
+        },
+
+        {
+          title: 'Pathless Layout',
+          url: '/route-a',
         },
         {
-          title: 'Starred',
-          url: '#',
+          title: 'Deferred',
+          url: '/deferred',
         },
         {
-          title: 'Settings',
-          url: '#',
+          title: 'This Route Does Not Exist',
+          url: '/this-route-does-not-exist',
+        },
+        {
+          title: 'Posts',
+          url: '/posts',
+        },
+        {
+          title: 'Users',
+          url: '/users',
         },
       ],
     },
