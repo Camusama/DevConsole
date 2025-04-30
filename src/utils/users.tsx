@@ -6,7 +6,7 @@ export type User = {
 
 export const DEPLOY_URL = 'http://localhost:3000'
 export const fetchUsers = async () => {
-  const res = await fetch(DEPLOY_URL + '/api/users')
+  const res = await fetch('/api/users')
   if (!res.ok) {
     throw new Error('Failed to fetch users')
   }
@@ -16,7 +16,7 @@ export const fetchUsers = async () => {
   return data
 }
 export const fetchUser = async (userId: string) => {
-  const res = await fetch(DEPLOY_URL + '/api/users/' + userId)
+  const res = await fetch('/api/users/' + userId)
 
   if (!res.ok) {
     throw new Error('Failed to fetch single user')
