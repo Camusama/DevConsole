@@ -1,6 +1,7 @@
 import { fetchPosts } from '@/utils/posts'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
 export default async function PostsLayoutComponent({ children }: { children: React.ReactNode }) {
   const posts = await fetchPosts()
 

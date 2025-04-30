@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { fetchUsers } from '@/utils/users'
+export const dynamic = 'force-dynamic'
 
 export default async function UsersLayoutComponent({ children }: { children: React.ReactNode }) {
   const users = await fetchUsers()
