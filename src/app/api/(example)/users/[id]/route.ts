@@ -1,9 +1,10 @@
 import type { User } from '@/utils/users'
 
 export async function GET(request: Request, { params }) {
-  console.info(`Fetching users by id=${params.id}... @`, request.url)
+  const { id } = await params
+  console.info(`Fetching users by id=${id}... @`, request.url)
   try {
-    const res = await fetch('https://jsonplaceholder.typicode.com/users/' + params.id)
+    const res = await fetch('https://jsonplaceholder.typicode.com/users/' + id)
     if (!res.ok) {
       throw new Error('Failed to fetch user')
     }
