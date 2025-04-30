@@ -53,17 +53,17 @@ export const data = {
   navMain: [
     {
       title: 'Monitors',
-      url: '/',
+      url: '/monitor',
       icon: SquareTerminal,
       isActive: true,
       items: [
         {
           title: 'Nezha',
-          url: '/nezha',
+          url: '/monitor/nezha',
         },
         {
           title: 'Uptime kuma',
-          url: '/uptime-kuma',
+          url: '/monitor/uptime-kuma',
         },
       ],
     },
@@ -77,7 +77,14 @@ export const data = {
           title: 'Home',
           url: '/',
         },
-
+        {
+          title: 'Posts',
+          url: '/posts',
+        },
+        {
+          title: 'Users',
+          url: '/users',
+        },
         {
           title: 'Pathless Layout',
           url: '/route-a',
@@ -89,14 +96,6 @@ export const data = {
         {
           title: 'This Route Does Not Exist',
           url: '/this-route-does-not-exist',
-        },
-        {
-          title: 'Posts',
-          url: '/posts',
-        },
-        {
-          title: 'Users',
-          url: '/users',
         },
       ],
     },

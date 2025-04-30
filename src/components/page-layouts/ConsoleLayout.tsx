@@ -21,10 +21,9 @@ export const ConsoleLayout = ({ children }: { children: React.ReactNode }) => {
   const breadcrumbData = useMemo(() => {
     let parentTitle = ''
     let currentTitle = ''
-
     for (const navGroup of data.navMain) {
       for (const item of navGroup.items || []) {
-        if (item.url === currentPath) {
+        if (currentPath !== '/' && item.url !== '/' && currentPath.indexOf(item.url) === 0) {
           parentTitle = navGroup.title
           currentTitle = item.title
           return { parentTitle, currentTitle, parentUrl: navGroup.url }
