@@ -1,30 +1,8 @@
 import Link from 'next/link'
+import { fetchUsers } from '@/utils/users'
 
-import { DEPLOY_URL } from '@/utils/users'
-import type { User } from '@/utils/users'
-
-const fetchUsers = async () => {
-  try {
-    const res = await fetch(DEPLOY_URL + '/api/users', {
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-    if (!res.ok) {
-      throw new Error('Unexpected status code')
-    }
-
-    const data = (await res.json()) as Array<User>
-
-    return data
-  } catch {
-    throw new Error('Failed to fetch users')
-  }
-}
 export default async function UsersLayoutComponent({ children }: { children: React.ReactNode }) {
   const users = await fetchUsers()
-
   return (
     <div className="p-2 flex gap-2">
       <ul className="list-disc pl-4">

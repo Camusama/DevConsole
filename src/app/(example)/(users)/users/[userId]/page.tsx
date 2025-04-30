@@ -1,22 +1,6 @@
-import type { User } from '@/utils/users'
-import { DEPLOY_URL } from '@/utils/users'
+import { fetchUser } from '@/utils/users'
 
-const fetchUser = async (userId: string) => {
-  try {
-    const res = await fetch(DEPLOY_URL + '/api/users/' + userId)
-
-    if (!res.ok) {
-      throw new Error('Unexpected status code')
-    }
-
-    const data = (await res.json()) as User
-
-    return data
-  } catch (e) {
-    throw e
-  }
-}
-export default async function UserComponent({ params }) {
+export default async function UserComponent({ params }: { params: Promise<{ userId: string }> }) {
   const { userId } = await params
   const user = await fetchUser(userId)
 

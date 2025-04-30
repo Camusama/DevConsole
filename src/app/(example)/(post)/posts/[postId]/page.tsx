@@ -1,7 +1,7 @@
 import { fetchPost } from '@/utils/posts'
 import Link from 'next/link'
 
-export default async function PostComponent({ params }: { params: { postId: string } }) {
+export default async function PostComponent({ params }: { params: Promise<{ postId: string }> }) {
   const { postId } = await params
   const post = await fetchPost({ data: postId })
 
