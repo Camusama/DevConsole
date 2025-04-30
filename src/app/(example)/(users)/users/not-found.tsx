@@ -1,4 +1,4 @@
 'use client'
 export default function NotFound() {
-  return <div>Post not found</div>
+  return <div>Users not found</div>
 }

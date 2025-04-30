@@ -1,4 +1,4 @@
 'use client'
 export default function NotFound() {
-  return <div>Error </div>
+  return <div>Users Error </div>
 }

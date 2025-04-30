@@ -1,13 +1,12 @@
 'use client'
 import Link from 'next/link'
 import { fetchUsers } from '@/utils/users'
-export const dynamic = 'force-dynamic'
+// export const dynamic = 'force-dynamic'
 import useSWR from 'swr'
 
 export default function UsersLayoutComponent({ children }: { children: React.ReactNode }) {
-  const { data: users, error, isLoading } = useSWR('/users/fetch', fetchUsers)
-  if (isLoading) return <div>Loading...</div>
-  if (error) return <div>Error: {error.message}</div>
+  const { data: users } = useSWR('/users/fetch', fetchUsers)
+
   return (
     <div className="p-2 flex gap-2">
       <ul className="list-disc pl-4">

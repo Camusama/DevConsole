@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation'
 export default function UserComponent() {
   const params = useParams()
   const userId = params.userId as string
-  const { data: user, error, isLoading } = useSWR(`/users/user/${userId}`, () => fetchUser(userId))
+  const { data: user, isLoading, error } = useSWR(`/users/user/${userId}`, () => fetchUser(userId))
   if (isLoading) return <div>Loading...</div>
   if (error) return <div>Error: {error.message}</div>
   return (
