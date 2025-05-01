@@ -1,7 +1,5 @@
-import { auth } from '@clerk/nextjs/server'
-
+'use server'
 // 在 nextjs  一个方法要支持客户端和服务端同时调用需要做大量操作
-
 export async function getBaseUrl() {
   // 客户端分支，直接返回空串,相对路径
   if (typeof window !== 'undefined') return ''
@@ -13,29 +11,6 @@ export async function getBaseUrl() {
   return `${proto}://${host}`
 }
 
-export async function getAuthHeaders() {
-  if (typeof window === 'undefined') {
-    try {
-      const { getToken } = await auth()
-      const token = await getToken()
-
-      if (token) {
-        return {
-          Authorization: `Bearer ${token}`,
-        }
-      }
-    } catch (error) {
-      console.error('获取认证令牌失败:', error)
-      return {
-        Authorization: '',
-      }
-    }
-  }
-  // 客户端或获取令牌失败时返回空对象
-  return {
-    Authorization: '',
-  }
-}
 export const fetchWithBaseUrl = async (
   ...args: Parameters<typeof fetch>
 ): ReturnType<typeof fetch> => {
@@ -48,6 +23,29 @@ export const fetchWithBaseUrl = async (
   return fetch(`${baseUrl}${args[0]}`, args[1])
 }
 
+export async function getAuthHeaders() {
+  if (typeof window !== 'undefined') {
+    return {
+      Authorization: '',
+    }
+  }
+  try {
+    const { auth } = await import('@clerk/nextjs/server')
+    const { getToken } = await auth()
+    const token = await getToken()
+
+    if (token) {
+      return {
+        Authorization: `Bearer ${token}`,
+      }
+    }
+  } catch (error) {
+    console.error('获取认证令牌失败:', error)
+    return {
+      Authorization: '',
+    }
+  }
+}
 // 服务端也要auth ，不会像客户端自动带，手动加上
 export const fetchWithAuth = async (
   ...args: Parameters<typeof fetch>

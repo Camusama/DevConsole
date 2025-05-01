@@ -7,6 +7,7 @@ export type User = {
 }
 
 export const fetchUsers = async () => {
+  // 双端使用
   const res = await fetchWithAuth(`/api/users`)
 
   if (!res.ok) {
@@ -18,7 +19,8 @@ export const fetchUsers = async () => {
   return data
 }
 export const fetchUser = async (userId: string) => {
-  const res = await fetchWithAuth(`/api/users/${userId}`)
+  // 注意这个写法，只能在 client 端使用
+  const res = await fetch(`/api/users/${userId}`)
 
   if (!res.ok) {
     throw new Error('Failed to fetch single user')
