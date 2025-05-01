@@ -1,5 +1,4 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
-
 const isAuthRoute = createRouteMatcher(['/monitor(.*)', '/api(.*)'])
 
 export default clerkMiddleware(async (auth, req) => {

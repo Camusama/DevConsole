@@ -1,12 +1,13 @@
-'use client'
+// 'use client'
 import Link from 'next/link'
 import { fetchUsers } from '@/utils/users'
-// export const dynamic = 'force-dynamic'
-import useSWR from 'swr'
+export const dynamic = 'force-dynamic'
+// import useSWR from 'swr'
 
-export default function UsersLayoutComponent({ children }: { children: React.ReactNode }) {
-  const { data: users } = useSWR('/users/fetch', fetchUsers)
-
+export default async function UsersLayoutComponent({ children }: { children: React.ReactNode }) {
+  // const { data: users } = useSWR('/fetch/users', fetchUsers)
+  // 改为服务端请求， 示例为同一个函数在服务端和客户端都可以使用  [userId]/page.tsx 为客户端请求
+  const users = await fetchUsers()
   return (
     <div className="p-2 flex gap-2">
       <ul className="list-disc pl-4">

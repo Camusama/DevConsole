@@ -1,12 +1,14 @@
+import { fetchWithAuth } from './fetchConfig'
+
 export type User = {
   id: number
   name: string
   email: string
 }
 
-export const DEPLOY_URL = 'http://localhost:3000'
 export const fetchUsers = async () => {
-  const res = await fetch('/api/users')
+  const res = await fetchWithAuth(`/api/users`)
+
   if (!res.ok) {
     throw new Error('Failed to fetch users')
   }
@@ -16,7 +18,7 @@ export const fetchUsers = async () => {
   return data
 }
 export const fetchUser = async (userId: string) => {
-  const res = await fetch('/api/users/' + userId)
+  const res = await fetchWithAuth(`/api/users/${userId}`)
 
   if (!res.ok) {
     throw new Error('Failed to fetch single user')
