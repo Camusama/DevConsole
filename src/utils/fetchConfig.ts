@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 
-// lib/getBaseUrl.ts
+// 在 nextjs  一个方法要支持客户端和服务端同时调用需要做大量操作
+
 export async function getBaseUrl() {
   // 客户端分支，直接返回空串,相对路径
   if (typeof window !== 'undefined') return ''
