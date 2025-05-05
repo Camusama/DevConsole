@@ -14,15 +14,18 @@ export type Vm = {
   host: string
 }
 import { Button } from '@/components/ui/button'
-import { ChevronRight } from 'lucide-react'
+import { mutate } from 'swr'
+import { CACHE_KEY } from '../page'
 export const columns: ColumnDef<Vm>[] = [
   {
     accessorKey: 'name',
     header: '虚拟机名称',
+    enableSorting: true,
   },
   {
     accessorKey: 'power_state',
     header: '电源状态',
+    enableSorting: true,
     cell: ({ row }) => {
       const isPoweredOn = row.original.power_state === 'poweredOn'
       return (
@@ -45,18 +48,22 @@ export const columns: ColumnDef<Vm>[] = [
   {
     accessorKey: 'os',
     header: '操作系统',
+    enableSorting: true,
   },
   {
     accessorKey: 'cpu_count',
     header: 'CPU核心',
+    enableSorting: true,
   },
   {
     accessorKey: 'memory_mb',
     header: '内存(MB)',
+    enableSorting: true,
   },
   {
     accessorKey: 'storage_used',
     header: '存储使用(GB)',
+    enableSorting: true,
   },
   {
     id: 'actions',
@@ -80,6 +87,8 @@ export const columns: ColumnDef<Vm>[] = [
           const result = await powerControlVm(row.original.name, actionType)
           if (!result.isSuccess) {
             setError(`操作失败: '未知错误'}`)
+          } else {
+            mutate(CACHE_KEY)
           }
         } catch (err) {
           setError(`操作失败: ${err instanceof Error ? err.message : '未知错误'}`)
@@ -89,11 +98,11 @@ export const columns: ColumnDef<Vm>[] = [
       }
 
       return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 justify-end">
           <Button
             onClick={() => handleAction('power_on')}
             disabled={loading.power_on || row.original.power_state === 'poweredOn'}
-            variant="secondary"
+            variant="outline"
             size="sm"
           >
             {loading.power_on ? '开机中...' : '开机'}
@@ -101,7 +110,7 @@ export const columns: ColumnDef<Vm>[] = [
           <Button
             onClick={() => handleAction('power_off')}
             disabled={loading.power_off || row.original.power_state === 'poweredOff'}
-            variant="secondary"
+            variant="outline"
             size="sm"
           >
             {loading.power_off ? '关机中...' : '关机'}

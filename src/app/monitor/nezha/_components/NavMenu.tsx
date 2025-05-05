@@ -10,7 +10,7 @@ import {
 import { navigationMenuTriggerStyle } from '@/components/ui/navigation-menu'
 import { rebotTencent3Y } from '@/lib/tencentcloudClient'
 import { toast } from 'sonner'
-import { getEsxiList, powerControlVm } from '@/lib/esxiClient'
+import { powerControlVm } from '@/lib/esxiClient'
 
 export const NavMenu = () => {
   const rebotTenct3Y = async () => {

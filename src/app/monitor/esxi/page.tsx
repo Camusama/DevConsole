@@ -1,201 +1,91 @@
+'use client'
 import { getEsxiList } from '@/lib/esxiClient'
 import { DataTable } from './_components/data-table'
 import { columns } from './_components/columns'
+import useSWR from 'swr'
+import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { RefreshCw } from 'lucide-react'
 
-export default async function Home() {
-  // const { isSuccess, data } = await getEsxiList()
-  const isSuccess = true
-  const data = [
-    {
-      name: 'debian-jellyfin',
-      power_state: 'poweredOff',
-      uuid: '564d846b-01c4-9ad3-9208-cc29bdaeebba',
-      os: 'Debian GNU/Linux 11 (64-bit)',
-      vmx_path: '[nvme] debian/debian.vmx',
-      hw_version: 'vmx-19',
-      tools_status: 'toolsNotRunning',
-      storage_used: 36.95,
-      cpu_count: 4,
-      memory_mb: 2048,
-      host: "'vim.HostSystem:ha-host'",
+// 缓存键名
+export const CACHE_KEY = 'esxi-data-cache'
+
+// 从localStorage获取缓存数据
+const getLocalCache = () => {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const cachedData = localStorage.getItem(CACHE_KEY)
+    if (!cachedData) return null
+
+    const parsed = JSON.parse(cachedData)
+    return parsed
+  } catch (error) {
+    console.error('Failed to parse cached data:', error)
+    return null
+  }
+}
+
+export default function Home() {
+  // 缓存时间状态
+  const [cacheTime, setCacheTime] = useState<string>('')
+
+  const { isLoading, data, error, isValidating, mutate } = useSWR(CACHE_KEY, getEsxiList, {
+    revalidateOnFocus: false,
+    onSuccess: data => {
+      // 成功获取数据后，将数据和时间戳存入localStorage
+      if (data?.isSuccess && typeof window !== 'undefined') {
+        const cacheData = {
+          data: data,
+          timestamp: new Date().toISOString(),
+        }
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData))
+        setCacheTime(new Date().toLocaleString())
+      }
     },
-    {
-      name: 'DSM7',
-      power_state: 'poweredOn',
-      uuid: '564db1d8-212b-ee8e-fc10-5619fe81b9bd',
-      os: 'Red Hat Enterprise Linux 7 (64-bit)',
-      vmx_path: '[nvme] DSM7/DSM7.vmx',
-      hw_version: 'vmx-19',
-      tools_status: 'toolsNotInstalled',
-      storage_used: 25.59,
-      cpu_count: 4,
-      memory_mb: 2048,
-      host: "'vim.HostSystem:ha-host'",
-    },
-    {
-      name: 'ikuai',
-      power_state: 'poweredOff',
-      uuid: '564d5472-9f33-c47e-0a2f-2135b7087aba',
-      os: 'Ubuntu Linux (64-bit)',
-      vmx_path: '[nvme] ikuai/ikuai.vmx',
-      hw_version: 'vmx-19',
-      tools_status: 'toolsNotInstalled',
-      storage_used: 8,
-      cpu_count: 4,
-      memory_mb: 1024,
-      host: "'vim.HostSystem:ha-host'",
-    },
-    {
-      name: 'CentOS7-v2board',
-      power_state: 'poweredOn',
-      uuid: '564dccc7-6556-2983-49b0-b6496d57547c',
-      os: 'CentOS 7 (64-bit)',
-      vmx_path: '[nvme] CentOS7-v2board/CentOS7-v2board.vmx',
-      hw_version: 'vmx-19',
-      tools_status: 'toolsOk',
-      storage_used: 76.49,
-      cpu_count: 4,
-      memory_mb: 5120,
-      host: "'vim.HostSystem:ha-host'",
-    },
-    {
-      name: 'centos-kube-node1',
-      power_state: 'poweredOff',
-      uuid: '564db699-4108-406e-2fd2-4df4c1173d62',
-      os: 'CentOS 7 (64-bit)',
-      vmx_path: '[nvme] centos-kube-node1/centos-kube-node1.vmx',
-      hw_version: 'vmx-19',
-      tools_status: 'toolsNotRunning',
-      storage_used: 10.01,
-      cpu_count: 4,
-      memory_mb: 4096,
-      host: "'vim.HostSystem:ha-host'",
-    },
-    {
-      name: 'centos-kube-node2',
-      power_state: 'poweredOff',
-      uuid: '564dfcda-4c0a-e047-e652-b1e37477634c',
-      os: 'CentOS 7 (64-bit)',
-      vmx_path: '[nvme] centos-kube-node2/centos-kube-node2.vmx',
-      hw_version: 'vmx-19',
-      tools_status: 'toolsNotRunning',
-      storage_used: 10.01,
-      cpu_count: 4,
-      memory_mb: 4096,
-      host: "'vim.HostSystem:ha-host'",
-    },
-    {
-      name: 'centos-kube-master',
-      power_state: 'poweredOff',
-      uuid: '564d2c15-3209-2443-03a3-7b11e38d4128',
-      os: 'CentOS 7 (64-bit)',
-      vmx_path: '[nvme] centos-kube-master/centos-kube-master.vmx',
-      hw_version: 'vmx-19',
-      tools_status: 'toolsNotRunning',
-      storage_used: 16.01,
-      cpu_count: 4,
-      memory_mb: 2048,
-      host: "'vim.HostSystem:ha-host'",
-    },
-    {
-      name: 'DSM',
-      power_state: 'poweredOff',
-      uuid: '564db130-1316-815e-201a-88e2233c4dca',
-      os: 'Other 3.x Linux (64-bit)',
-      vmx_path: '[nvme] DSM/DSM.vmx',
-      hw_version: 'vmx-14',
-      tools_status: 'toolsNotInstalled',
-      storage_used: 7.49,
-      cpu_count: 4,
-      memory_mb: 2048,
-      host: "'vim.HostSystem:ha-host'",
-    },
-    {
-      name: 'OpenWRT-2025',
-      power_state: 'poweredOn',
-      uuid: '564d5f5c-d748-fd27-c2f7-f706090e2975',
-      os: 'Other 4.x Linux (64-bit)',
-      vmx_path: '[nvme] OpenWRT-2025/OpenWRT-2025.vmx',
-      hw_version: 'vmx-19',
-      tools_status: 'toolsOk',
-      storage_used: 10.76,
-      cpu_count: 4,
-      memory_mb: 4096,
-      host: "'vim.HostSystem:ha-host'",
-    },
-    {
-      name: 'OpenWRT',
-      power_state: 'poweredOff',
-      uuid: '564dd5c4-39a0-16a8-c58e-30ad5db4569a',
-      os: 'Other 3.x Linux (64-bit)',
-      vmx_path: '[nvme] OpenWRT/OpenWRT.vmx',
-      hw_version: 'vmx-19',
-      tools_status: 'toolsNotRunning',
-      storage_used: 0.51,
-      cpu_count: 4,
-      memory_mb: 1024,
-      host: "'vim.HostSystem:ha-host'",
-    },
-    {
-      name: 'Ubuntu 22',
-      power_state: 'poweredOff',
-      uuid: '564d8d9a-8eea-ee67-870e-974af878860d',
-      os: 'Ubuntu Linux (64-bit)',
-      vmx_path: '[nvme] Ubuntu 22/Ubuntu 22.vmx',
-      hw_version: 'vmx-19',
-      tools_status: 'toolsNotRunning',
-      storage_used: 30.01,
-      cpu_count: 4,
-      memory_mb: 2048,
-      host: "'vim.HostSystem:ha-host'",
-    },
-    {
-      name: 'debian 11',
-      power_state: 'poweredOff',
-      uuid: '564d4c1d-faf1-fb5a-0115-37465fdadd16',
-      os: 'Debian GNU/Linux 11 (64-bit)',
-      vmx_path: '[nvme] debian 11/debian 11.vmx',
-      hw_version: 'vmx-19',
-      tools_status: 'toolsNotRunning',
-      storage_used: 30,
-      cpu_count: 4,
-      memory_mb: 2048,
-      host: "'vim.HostSystem:ha-host'",
-    },
-    {
-      name: 'fedora-server',
-      power_state: 'poweredOff',
-      uuid: '564de196-f4b8-c6e4-b49c-d631790112f1',
-      os: 'Other 5.x or later Linux (64-bit)',
-      vmx_path: '[nvme] Fedora/Fedora.vmx',
-      hw_version: 'vmx-19',
-      tools_status: 'toolsNotRunning',
-      storage_used: 30.01,
-      cpu_count: 4,
-      memory_mb: 2048,
-      host: "'vim.HostSystem:ha-host'",
-    },
-    {
-      name: 'fedora-workspace',
-      power_state: 'poweredOff',
-      uuid: '564d9bad-df9c-c38d-16a1-82df6850befd',
-      os: 'Other 5.x or later Linux (64-bit)',
-      vmx_path: '[nvme] fedora-workspace/fedora-workspace.vmx',
-      hw_version: 'vmx-19',
-      tools_status: 'toolsNotRunning',
-      storage_used: 30,
-      cpu_count: 4,
-      memory_mb: 2048,
-      host: "'vim.HostSystem:ha-host'",
-    },
-  ]
-  if (!isSuccess) {
-    return <div>Failed to load ESXi data</div>
+    fallbackData: getLocalCache()?.data,
+  })
+
+  // 初始化时从缓存中获取时间戳
+  useEffect(() => {
+    const cachedData = getLocalCache()
+    if (cachedData?.timestamp) {
+      setCacheTime(new Date(cachedData.timestamp).toLocaleString())
+    }
+  }, [data])
+
+  // 手动刷新数据
+  const handleRefresh = () => {
+    mutate()
+  }
+
+  if (isLoading && !getLocalCache()?.data) {
+    return <div>ESXi Loading...</div>
   }
 
   return (
     <div className="container mx-auto py-10">
-      <DataTable columns={columns} data={data} />
+      <div className="flex justify-between items-center mb-4 p-3 bg-gray-50 rounded-md">
+        <div className="flex flex-col">
+          <div className="text-sm text-gray-500">
+            {cacheTime ? `上次更新时间: ${cacheTime}` : '无缓存数据'}
+          </div>
+          <div className="text-xs text-gray-400">
+            {isValidating ? '正在更新数据...' : '数据已是最新'}
+          </div>
+        </div>
+        <Button
+          onClick={handleRefresh}
+          variant="outline"
+          size="sm"
+          disabled={isValidating}
+          className="flex items-center gap-1"
+        >
+          <RefreshCw className={`h-4 w-4 ${isValidating ? 'animate-spin' : ''}`} />
+          刷新
+        </Button>
+      </div>
+      <DataTable columns={columns} data={data?.data || []} />
     </div>
   )
 }

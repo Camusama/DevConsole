@@ -1,6 +1,12 @@
 'use client'
 
-import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table'
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
 
 import {
   Table,
@@ -10,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-
+import { ArrowDown, ArrowUp } from 'lucide-react'
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
@@ -21,6 +27,10 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    initialState: {
+      sorting: [],
+    },
   })
 
   return (
@@ -31,10 +41,20 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map(header => {
                 return (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  <TableHead
+                    key={header.id}
+                    onClick={header.column.getToggleSortingHandler()}
+                    className="cursor-pointer hover:bg-gray-100"
+                  >
+                    {header.isPlaceholder ? null : (
+                      <div className="flex items-center">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {{
+                          asc: <ArrowUp className="ml-1 h-3 w-3" />,
+                          desc: <ArrowDown className="ml-1 h-3 w-3" />,
+                        }[header.column.getIsSorted() as string] ?? null}
+                      </div>
+                    )}
                   </TableHead>
                 )
               })}

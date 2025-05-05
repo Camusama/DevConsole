@@ -5,7 +5,6 @@ import { fetchWithClerk } from '@/utils/fetchConfig'
 export async function getEsxiList() {
   try {
     const response = await fetchWithClerk(`${process.env.NEXT_PUBLIC_PY_ENDPOINT}/vms`)
-    console.log('response', response)
     const data = await response.json()
 
     return {
