@@ -6,9 +6,7 @@ import useSWR from 'swr'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { RefreshCw } from 'lucide-react'
-
-// 缓存键名
-export const CACHE_KEY = 'esxi-data-cache'
+import { ESXI_CACHE_KEY as CACHE_KEY } from '@/lib/constants'
 
 // 从localStorage获取缓存数据
 const getLocalCache = () => {
