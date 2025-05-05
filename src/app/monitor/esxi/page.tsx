@@ -32,7 +32,12 @@ export default function Home() {
     revalidateOnFocus: false,
     onSuccess: data => {
       // 成功获取数据后，将数据和时间戳存入localStorage
-      if (data?.isSuccess && typeof window !== 'undefined') {
+      if (
+        data?.isSuccess &&
+        typeof window !== 'undefined' &&
+        Array.isArray(data.data) &&
+        data?.data?.length > 0
+      ) {
         const cacheData = {
           data: data,
           timestamp: new Date().toISOString(),
@@ -50,7 +55,7 @@ export default function Home() {
     if (cachedData?.timestamp) {
       setCacheTime(new Date(cachedData.timestamp).toLocaleString())
     }
-  }, [data])
+  }, [data, isValidating])
 
   // 手动刷新数据
   const handleRefresh = () => {
