@@ -62,6 +62,10 @@ export const data = {
           url: '/monitor/nezha',
         },
         {
+          title: 'ESXi',
+          url: '/monitor/esxi',
+        },
+        {
           title: 'Uptime kuma',
           url: '/monitor/uptime-kuma',
         },

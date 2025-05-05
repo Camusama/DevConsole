@@ -10,6 +10,7 @@ import {
 import { navigationMenuTriggerStyle } from '@/components/ui/navigation-menu'
 import { rebotTencent3Y } from '@/lib/tencentcloudClient'
 import { toast } from 'sonner'
+import { getEsxiList, powerControlVm } from '@/lib/esxiClient'
 
 export const NavMenu = () => {
   const rebotTenct3Y = async () => {
@@ -24,6 +25,25 @@ export const NavMenu = () => {
       })
     }
   }
+
+  const powerControlFn = async (vmName = 'centos-kube-node1') => {
+    const { isSuccess, data } = await powerControlVm(vmName, 'reboot')
+    if (isSuccess) {
+      toast.success('Rebot Success', {
+        description: JSON.stringify(data),
+      })
+    } else {
+      toast.error('Rebot Failed', {
+        description: JSON.stringify(data),
+      })
+    }
+  }
+  const rebot146 = async () => {
+    return powerControlFn('CentOS7-v2board')
+  }
+  const rebootWRT = async () => {
+    return powerControlFn('OpenWRT-2025')
+  }
   return (
     <NavigationMenu>
       <NavigationMenuList>
@@ -32,10 +52,27 @@ export const NavMenu = () => {
           <NavigationMenuContent>
             <NavigationMenuLink
               className={`${navigationMenuTriggerStyle()} cursor-pointer`}
+              onClick={() => rebot146}
+            >
+              <span>
+                Reboot <span className="font-semibold"> V2board-146</span>
+              </span>
+            </NavigationMenuLink>
+            <br />
+            <NavigationMenuLink
+              className={`${navigationMenuTriggerStyle()} cursor-pointer`}
+              onClick={() => rebootWRT}
+            >
+              <span>
+                Reboot <span className="font-semibold"> OpenWRT</span>
+              </span>
+            </NavigationMenuLink>
+            <NavigationMenuLink
+              className={`${navigationMenuTriggerStyle()} cursor-pointer`}
               onClick={rebotTenct3Y}
             >
               <span>
-                Rebot <span className="font-semibold"> Tencent-3Y lhins-27vkwuua</span>
+                Reboot <span className="font-semibold"> Tencent-3Y lhins-27vkwuua</span>
               </span>
             </NavigationMenuLink>
           </NavigationMenuContent>

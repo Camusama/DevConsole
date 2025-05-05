@@ -64,3 +64,20 @@ export const fetchWithAuth = async (
     },
   })
 }
+export const fetchWithClerk = async (
+  ...args: Parameters<typeof fetch>
+): ReturnType<typeof fetch> => {
+  if (typeof window !== 'undefined') {
+    // 客户端
+    return fetchWithBaseUrl(...args)
+  }
+  //服务端auth
+  const headers = await getAuthHeaders()
+  return fetch(args[0], {
+    ...args[1],
+    headers: {
+      ...args[1]?.headers,
+      ...headers,
+    },
+  })
+}
