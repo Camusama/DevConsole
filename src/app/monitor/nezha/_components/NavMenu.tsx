@@ -39,10 +39,10 @@ export const NavMenu = () => {
     }
   }
   const rebot146 = async () => {
-    return powerControlFn('CentOS7-v2board')
+    return await powerControlFn('CentOS7-v2board')
   }
   const rebootWRT = async () => {
-    return powerControlFn('OpenWRT-2025')
+    return await powerControlFn('OpenWRT-2025')
   }
   return (
     <NavigationMenu>
@@ -52,7 +52,7 @@ export const NavMenu = () => {
           <NavigationMenuContent>
             <NavigationMenuLink
               className={`${navigationMenuTriggerStyle()} cursor-pointer`}
-              onClick={() => rebot146}
+              onClick={() => rebot146()}
             >
               <span>
                 Reboot <span className="font-semibold"> V2board-146</span>
@@ -61,7 +61,7 @@ export const NavMenu = () => {
             <br />
             <NavigationMenuLink
               className={`${navigationMenuTriggerStyle()} cursor-pointer`}
-              onClick={() => rebootWRT}
+              onClick={() => rebootWRT()}
             >
               <span>
                 Reboot <span className="font-semibold"> OpenWRT</span>
