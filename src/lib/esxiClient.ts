@@ -3,7 +3,7 @@
 import { fetchWithClerk } from '@/utils/fetchConfig'
 export async function getEsxiList() {
   try {
-    const response = await fetchWithClerk(`${process.env.NEXT_PUBLIC_PY_ENDPOINT}/vms`)
+    const response = await fetchWithClerk(`${process.env.SERVER_PY_ENDPOINT}/vms`)
     const data = await response.json()
 
     return {
@@ -26,7 +26,7 @@ export async function powerControlVm(
 ) {
   try {
     const response = await fetchWithClerk(
-      `${process.env.NEXT_PUBLIC_PY_ENDPOINT}/vms/${actionType}`,
+      `${process.env.SERVER_PY_ENDPOINT}/vms/${actionType}`,
       {
         method: 'POST',
         headers: {
