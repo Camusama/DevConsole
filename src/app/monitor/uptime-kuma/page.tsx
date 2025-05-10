@@ -1,11 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, KeyboardEvent } from 'react'
 import { Plus, Search, Trash2, Edit, Save, X, FolderPlus, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Sheet,
   SheetContent,
@@ -74,6 +82,22 @@ const BookmarkForm = ({
 }: BookmarkFormProps) => {
   const idSuffix = isMobile ? '-mobile' : ''
 
+  // 处理回车键提交
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      saveBookmark()
+    }
+  }
+
+  // 处理新分类回车键提交
+  const handleCategoryKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      addCategory()
+    }
+  }
+
   return (
     <>
       <SheetHeader>
@@ -86,6 +110,7 @@ const BookmarkForm = ({
             id={`title${idSuffix}`}
             value={currentBookmark.title}
             onChange={e => setCurrentBookmark({ ...currentBookmark, title: e.target.value })}
+            onKeyDown={handleKeyDown}
           />
         </FormField>
 
@@ -94,6 +119,7 @@ const BookmarkForm = ({
             id={`url${idSuffix}`}
             value={currentBookmark.url}
             onChange={e => setCurrentBookmark({ ...currentBookmark, url: e.target.value })}
+            onKeyDown={handleKeyDown}
           />
         </FormField>
 
@@ -106,6 +132,7 @@ const BookmarkForm = ({
                   value={newCategory}
                   onChange={e => setNewCategory(e.target.value)}
                   placeholder="新分类名称"
+                  onKeyDown={handleCategoryKeyDown}
                 />
                 <Button size="icon" onClick={addCategory}>
                   <Save className="h-4 w-4" />
@@ -142,6 +169,7 @@ const BookmarkForm = ({
             id={`description${idSuffix}`}
             value={currentBookmark.description}
             onChange={e => setCurrentBookmark({ ...currentBookmark, description: e.target.value })}
+            onKeyDown={handleKeyDown}
           />
         </FormField>
       </div>
@@ -179,35 +207,64 @@ const BookmarkActions = ({
 }: BookmarkActionsProps) => {
   const iconSize = isCompact ? 'h-4 w-4' : 'h-3 w-3'
   const buttonSize = isCompact ? '' : 'h-7 w-7'
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+
+  const handleDelete = () => {
+    if (bookmark._id) {
+      deleteBookmark(bookmark._id)
+      setShowDeleteDialog(false)
+    }
+  }
 
   return (
-    <div className="flex gap-1">
-      <Button
-        variant="ghost"
-        size="icon"
-        className={buttonSize}
-        onClick={e => {
-          e.preventDefault()
-          e.stopPropagation()
-          editBookmark(bookmark)
-        }}
-      >
-        <Edit className={iconSize} />
-      </Button>
+    <>
+      <div className="flex gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={buttonSize}
+          onClick={e => {
+            e.preventDefault()
+            e.stopPropagation()
+            editBookmark(bookmark)
+          }}
+        >
+          <Edit className={iconSize} />
+        </Button>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        className={buttonSize}
-        onClick={e => {
-          e.preventDefault()
-          e.stopPropagation()
-          if (bookmark._id) deleteBookmark(bookmark._id)
-        }}
-      >
-        <Trash2 className={iconSize} />
-      </Button>
-    </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={buttonSize}
+          onClick={e => {
+            e.preventDefault()
+            e.stopPropagation()
+            setShowDeleteDialog(true)
+          }}
+        >
+          <Trash2 className={iconSize} />
+        </Button>
+      </div>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>确认删除</DialogTitle>
+            <DialogDescription>
+              您确定要删除书签 "{bookmark.title}" 吗？此操作无法撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex justify-between sm:justify-between">
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -262,7 +319,7 @@ const BookmarkCard = ({
   }
 
   return (
-    <div className="group relative flex flex-col p-4 bg-card text-card-foreground rounded-lg border shadow-sm hover:shadow transition-all duration-200 overflow-hidden">
+    <div className="group relative flex flex-col p-4 bg-card text-card-foreground rounded-lg border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden transform hover:scale-[1.02] hover:border-primary/20">
       <div className="flex items-center gap-3 mb-2">
         <BookmarkIcon title={bookmark.title} />
         <div className="font-medium truncate">{bookmark.title}</div>
@@ -271,13 +328,16 @@ const BookmarkCard = ({
         <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{bookmark.description}</p>
       )}
       <div className="text-xs text-muted-foreground mt-auto pt-2 border-t flex justify-between items-center">
-        <span className="px-2 py-1 rounded-full bg-muted">{bookmark.category}</span>
+        <span className="px-2 py-1 rounded-full bg-muted group-hover:bg-primary/10 transition-colors duration-300">
+          {bookmark.category}
+        </span>
         <BookmarkActions
           bookmark={bookmark}
           editBookmark={editBookmark}
           deleteBookmark={deleteBookmark}
         />
       </div>
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
       <a
         href={bookmark.url}
         target="_blank"
@@ -361,15 +421,20 @@ export default function Home() {
       })
 
       if (response.ok) {
-        toast.success(currentBookmark._id ? '书签更新成功' : '书签添加成功')
-        setCurrentBookmark({
-          ...defaultBookMark,
-        })
         setEditMode(false)
         fetchBookmarks()
       } else {
         const error = await response.json()
         toast.error(error.error || '操作失败')
+      }
+      if (currentBookmark._id) {
+        //编辑时
+        setSheetOpen(false)
+        toast.success('书签更新成功')
+        // 回正，添加时不回正
+        setCurrentBookmark({
+          ...defaultBookMark,
+        })
       }
     } catch (error) {
       toast.error('保存书签失败')
