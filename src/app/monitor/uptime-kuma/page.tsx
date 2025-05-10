@@ -282,7 +282,7 @@ const BookmarkCard = ({
         href={bookmark.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="absolute inset-0 z-10"
+        className="absolute inset-0 z-10 h-[calc(100%-50px)]"
         onClick={e => e.stopPropagation()}
       ></a>
     </div>
@@ -496,8 +496,8 @@ export default function Home() {
               onOpenChange={() => toggleCategory(category)}
               className="w-full"
             >
-              <div className="flex items-center justify-between border-b pb-2 mb-4">
-                <CollapsibleTrigger asChild>
+              <CollapsibleTrigger asChild>
+                <div className="flex items-center justify-between border-b pb-2 mb-4 cursor-pointer">
                   <Button
                     variant="ghost"
                     className="flex items-center gap-2 p-0 h-auto hover:bg-transparent"
@@ -516,9 +516,8 @@ export default function Home() {
                       </span>
                     </h2>
                   </Button>
-                </CollapsibleTrigger>
-              </div>
-
+                </div>
+              </CollapsibleTrigger>
               <CollapsibleContent>
                 {bookmarksByCategory[category]?.length ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
