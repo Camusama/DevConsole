@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, FC } from 'react'
 import { Plus, Search, Trash2, Edit, Save, X, FolderPlus, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -296,6 +296,12 @@ const BookmarkCard = ({
     </div>
   )
 }
+const defaultBookMark = {
+  title: '',
+  url: '',
+  category: '默认',
+  description: '',
+}
 export default function Home() {
   // 状态管理
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
@@ -307,13 +313,15 @@ export default function Home() {
 
   // 编辑状态
   const [editMode, setEditMode] = useState(false)
-  const [currentBookmark, setCurrentBookmark] = useState<Bookmark>({
-    title: '',
-    url: '',
-    category: '默认',
-    description: '',
-  })
-
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [currentBookmark, setCurrentBookmark] = useState<Bookmark>({ ...defaultBookMark })
+  const onSheetOpenChange = (open: boolean) => {
+    if (!open) {
+      setEditMode(false)
+      setCurrentBookmark({ ...defaultBookMark })
+    }
+    setSheetOpen(open)
+  }
   // 获取所有书签
   const fetchBookmarks = async () => {
     try {
@@ -363,10 +371,7 @@ export default function Home() {
       if (response.ok) {
         toast.success(currentBookmark._id ? '书签更新成功' : '书签添加成功')
         setCurrentBookmark({
-          title: '',
-          url: '',
-          category: '默认',
-          description: '',
+          ...defaultBookMark,
         })
         setEditMode(false)
         fetchBookmarks()
@@ -404,6 +409,7 @@ export default function Home() {
   const editBookmark = (bookmark: Bookmark) => {
     setCurrentBookmark(bookmark)
     setEditMode(true)
+    setSheetOpen(true)
   }
 
   // 添加新分类
@@ -446,7 +452,7 @@ export default function Home() {
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
-          <Sheet>
+          <Sheet open={sheetOpen} onOpenChange={onSheetOpenChange}>
             <SheetTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" /> 添加书签
@@ -561,7 +567,7 @@ export default function Home() {
                   href={bookmark.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="absolute inset-0 z-10 h-[calc(100%-32px)]"
+                  className="absolute inset-0 z-10 h-[calc(100%-50px)]"
                   onClick={e => e.stopPropagation()}
                 ></a>
               </div>
@@ -579,31 +585,6 @@ export default function Home() {
           </p>
         </div>
       )}
-
-      <div className="fixed bottom-4 right-4">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button size="icon" className="rounded-full w-12 h-12 shadow-md">
-              <Plus className="h-6 w-6" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent>
-            <BookmarkForm
-              currentBookmark={currentBookmark}
-              setCurrentBookmark={setCurrentBookmark}
-              categories={categories}
-              newCategory={newCategory}
-              setNewCategory={setNewCategory}
-              showCategoryInput={showCategoryInput}
-              setShowCategoryInput={setShowCategoryInput}
-              addCategory={addCategory}
-              saveBookmark={saveBookmark}
-              editMode={editMode}
-              isMobile={true}
-            />
-          </SheetContent>
-        </Sheet>
-      </div>
     </div>
   )
 }
