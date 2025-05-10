@@ -1,19 +1,11 @@
 'use client'
 
-import { useState, useEffect, FC } from 'react'
-import { Plus, Search, Trash2, Edit, Save, X, FolderPlus, Loader2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Plus, Search, Trash2, Edit, Save, X, FolderPlus, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from '@/components/ui/navigation-menu'
-import { navigationMenuTriggerStyle } from '@/components/ui/navigation-menu'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   Sheet,
   SheetContent,
@@ -439,6 +431,17 @@ export default function Home() {
     return acc
   }, {} as Record<string, Bookmark[]>)
 
+  // 控制分类折叠状态
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({})
+
+  // 切换分类折叠状态
+  const toggleCategory = (category: string) => {
+    setCollapsedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category],
+    }))
+  }
+
   return (
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-6">
@@ -484,95 +487,57 @@ export default function Home() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1">
-          <NavigationMenu className="max-w-full w-full justify-start">
-            <NavigationMenuList className="flex flex-wrap gap-2">
-              {categories.map(category => (
-                <NavigationMenuItem key={category}>
-                  <NavigationMenuTrigger>
-                    {category} ({bookmarksByCategory[category]?.length || 0})
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="grid gap-3 p-4 w-[400px] md:w-[500px] lg:w-[600px]">
-                      {bookmarksByCategory[category]?.length ? (
-                        bookmarksByCategory[category].map(bookmark => (
-                          <BookmarkCard
-                            key={bookmark._id}
-                            bookmark={bookmark}
-                            editBookmark={editBookmark}
-                            deleteBookmark={deleteBookmark}
-                            isCompact={true}
-                          />
-                        ))
-                      ) : (
-                        <div className="text-center py-4 text-muted-foreground">
-                          该分类下暂无书签
-                        </div>
-                      )}
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-              ))}
-            </NavigationMenuList>
-          </NavigationMenu>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
-            {filteredBookmarks.map(bookmark => (
-              <div
-                key={bookmark._id}
-                className="group relative flex flex-col p-4 bg-card text-card-foreground rounded-lg border shadow-sm hover:shadow transition-all duration-200 overflow-hidden"
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-muted-foreground font-medium">
-                    {bookmark.title.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="font-medium truncate">{bookmark.title}</div>
-                </div>
-                {bookmark.description && (
-                  <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                    {bookmark.description}
-                  </p>
-                )}
-                <div className="text-xs text-muted-foreground mt-auto pt-2 border-t flex justify-between items-center">
-                  <span className="px-2 py-1 rounded-full bg-muted">{bookmark.category}</span>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={e => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        editBookmark(bookmark)
-                      }}
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={e => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        if (bookmark._id) deleteBookmark(bookmark._id)
-                      }}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-                <a
-                  href={bookmark.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="absolute inset-0 z-10 h-[calc(100%-50px)]"
-                  onClick={e => e.stopPropagation()}
-                ></a>
+        <div className="grid grid-cols-1 gap-6">
+          {categories.map(category => (
+            <Collapsible
+              key={category}
+              defaultOpen={true}
+              open={!collapsedCategories[category]}
+              onOpenChange={() => toggleCategory(category)}
+              className="w-full"
+            >
+              <div className="flex items-center justify-between border-b pb-2 mb-4">
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="flex items-center gap-2 p-0 h-auto hover:bg-transparent"
+                  >
+                    <ChevronDown
+                      className={`h-5 w-5 transition-transform duration-200 ${
+                        !collapsedCategories[category]
+                          ? 'transform rotate-0'
+                          : 'transform rotate-180'
+                      }`}
+                    />
+                    <h2 className="text-xl font-semibold">
+                      {category}{' '}
+                      <span className="text-sm text-muted-foreground">
+                        ({bookmarksByCategory[category]?.length || 0})
+                      </span>
+                    </h2>
+                  </Button>
+                </CollapsibleTrigger>
               </div>
-            ))}
-          </div>
+
+              <CollapsibleContent>
+                {bookmarksByCategory[category]?.length ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {bookmarksByCategory[category].map(bookmark => (
+                      <BookmarkCard
+                        key={bookmark._id}
+                        bookmark={bookmark}
+                        editBookmark={editBookmark}
+                        deleteBookmark={deleteBookmark}
+                        isCompact={false}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">该分类下暂无书签</div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          ))}
         </div>
       )}
 
