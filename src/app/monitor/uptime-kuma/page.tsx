@@ -340,7 +340,7 @@ const BookmarkCard = ({
         <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{bookmark.description}</p>
       )}
       <div className="text-xs text-muted-foreground mt-auto pt-2 border-t flex justify-between items-center">
-        <span className="px-2 py-1 rounded-full bg-muted group-hover:bg-primary/10 transition-colors duration-300">
+        <span className="px-2 py-1 rounded-full bg-muted transition-colors duration-300">
           {bookmark.category}
         </span>
         <BookmarkActions
@@ -349,7 +349,6 @@ const BookmarkCard = ({
           deleteBookmark={deleteBookmark}
         />
       </div>
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
       <a
         href={bookmark.url}
         target="_blank"
