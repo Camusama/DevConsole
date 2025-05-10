@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, KeyboardEvent } from 'react'
+import { useState, KeyboardEvent } from 'react'
 import { Plus, Search, Trash2, Edit, Save, X, FolderPlus, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import useSWR from 'swr'
 import {
   Sheet,
   SheetContent,
@@ -143,19 +151,23 @@ const BookmarkForm = ({
               </div>
             ) : (
               <>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                <Select
                   value={currentBookmark.category}
-                  onChange={e =>
-                    setCurrentBookmark({ ...currentBookmark, category: e.target.value })
+                  onValueChange={value =>
+                    setCurrentBookmark({ ...currentBookmark, category: value })
                   }
                 >
-                  {categories.map(category => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="选择分类" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(category => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button size="icon" variant="outline" onClick={() => setShowCategoryInput(true)}>
                   <FolderPlus className="h-4 w-4" />
                 </Button>
@@ -354,11 +366,61 @@ const defaultBookMark = {
   category: '默认',
   description: '',
 }
+
+// API fetcher 函数
+const fetchBookmarksApi = async () => {
+  const response = await fetch('/api/bookmarks')
+  if (!response.ok) {
+    throw new Error('获取书签失败')
+  }
+  const data = await response.json()
+  return data.bookmarks || []
+}
+
+// 添加或更新书签的 API 函数
+const saveBookmarkApi = async (bookmark: Bookmark) => {
+  const method = bookmark._id ? 'PUT' : 'POST'
+  const response = await fetch('/api/bookmarks', {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(bookmark),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || '操作失败')
+  }
+
+  return await response.json()
+}
+
+// 删除书签的 API 函数
+const deleteBookmarkApi = async (id: string) => {
+  const response = await fetch(`/api/bookmarks?id=${id}`, {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || '删除失败')
+  }
+
+  return await response.json()
+}
 export default function Home() {
+  // 使用 SWR 获取书签数据
+  const {
+    data: bookmarks = [],
+    isLoading,
+    mutate: refreshBookmarks,
+  } = useSWR<Bookmark[]>('/api/bookmarks', fetchBookmarksApi, {
+    revalidateOnFocus: false,
+    dedupingInterval: 10000, // 10秒内不重复请求
+  })
+
   // 状态管理
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
-  const [categories, setCategories] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [newCategory, setNewCategory] = useState('')
   const [showCategoryInput, setShowCategoryInput] = useState(false)
@@ -367,6 +429,10 @@ export default function Home() {
   const [editMode, setEditMode] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [currentBookmark, setCurrentBookmark] = useState<Bookmark>({ ...defaultBookMark })
+
+  // 从书签数据中提取分类
+  const categories = Array.from(new Set(bookmarks.map(bookmark => bookmark.category)))
+
   const onSheetOpenChange = (open: boolean) => {
     if (!open) {
       setEditMode(false)
@@ -374,34 +440,6 @@ export default function Home() {
     }
     setSheetOpen(open)
   }
-  // 获取所有书签
-  const fetchBookmarks = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch('/api/bookmarks')
-      const data = await response.json()
-
-      if (data.bookmarks) {
-        setBookmarks(data.bookmarks)
-
-        // 提取所有分类
-        const uniqueCategories = Array.from(
-          new Set(data.bookmarks.map((bookmark: Bookmark) => bookmark.category))
-        )
-        setCategories(uniqueCategories as string[])
-      }
-    } catch (error) {
-      toast.error('获取书签失败')
-      console.error('获取书签失败:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // 初始加载
-  useEffect(() => {
-    fetchBookmarks()
-  }, [])
 
   // 添加或更新书签
   const saveBookmark = async () => {
@@ -411,33 +449,18 @@ export default function Home() {
         return
       }
 
-      const method = currentBookmark._id ? 'PUT' : 'POST'
-      const response = await fetch('/api/bookmarks', {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
+      toast.promise(saveBookmarkApi(currentBookmark), {
+        loading: '保存中...',
+        success: () => {
+          setCurrentBookmark({ ...defaultBookMark })
+          setEditMode(false)
+          setSheetOpen(false)
+          refreshBookmarks() // 刷新数据
+          return currentBookmark._id ? '书签更新成功' : '书签添加成功'
         },
-        body: JSON.stringify(currentBookmark),
+        error: err => `${err.message}`,
       })
-
-      if (response.ok) {
-        setEditMode(false)
-        fetchBookmarks()
-      } else {
-        const error = await response.json()
-        toast.error(error.error || '操作失败')
-      }
-      if (currentBookmark._id) {
-        //编辑时
-        setSheetOpen(false)
-        toast.success('书签更新成功')
-        // 回正，添加时不回正
-        setCurrentBookmark({
-          ...defaultBookMark,
-        })
-      }
     } catch (error) {
-      toast.error('保存书签失败')
       console.error('保存书签失败:', error)
     }
   }
@@ -445,19 +468,15 @@ export default function Home() {
   // 删除书签
   const deleteBookmark = async (id: string) => {
     try {
-      const response = await fetch(`/api/bookmarks?id=${id}`, {
-        method: 'DELETE',
+      toast.promise(deleteBookmarkApi(id), {
+        loading: '删除中...',
+        success: () => {
+          refreshBookmarks() // 刷新数据
+          return '书签删除成功'
+        },
+        error: err => `${err.message}`,
       })
-
-      if (response.ok) {
-        toast.success('书签删除成功')
-        fetchBookmarks()
-      } else {
-        const error = await response.json()
-        toast.error(error.error || '删除失败')
-      }
     } catch (error) {
-      toast.error('删除书签失败')
       console.error('删除书签失败:', error)
     }
   }
@@ -472,7 +491,7 @@ export default function Home() {
   // 添加新分类
   const addCategory = () => {
     if (newCategory && !categories.includes(newCategory)) {
-      setCategories([...categories, newCategory])
+      // 不需要手动更新categories，因为它是从bookmarks中派生的
       setCurrentBookmark({ ...currentBookmark, category: newCategory })
       setNewCategory('')
       setShowCategoryInput(false)
@@ -544,12 +563,40 @@ export default function Home() {
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-[250px]" />
-            <Skeleton className="h-4 w-[200px]" />
-          </div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-6">
+          {/* 骨架屏幕 - 模拟分类和卡片布局 */}
+          {[1, 2].map(category => (
+            <div key={category} className="w-full">
+              <div className="flex items-center border-b pb-2 mb-4">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-5 w-5 rounded-full" />
+                  <Skeleton className="h-8 w-40" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {Array(4)
+                  .fill(0)
+                  .map((_, i) => (
+                    <div key={i} className="flex flex-col p-4 bg-card rounded-lg border shadow-sm">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Skeleton className="h-8 w-8 rounded" />
+                        <Skeleton className="h-5 w-32" />
+                      </div>
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-3/4 mb-2" />
+                      <div className="mt-auto pt-2 border-t flex justify-between items-center">
+                        <Skeleton className="h-5 w-16 rounded-full" />
+                        <div className="flex gap-1">
+                          <Skeleton className="h-7 w-7 rounded" />
+                          <Skeleton className="h-7 w-7 rounded" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6">
@@ -605,7 +652,7 @@ export default function Home() {
         </div>
       )}
 
-      {!loading && filteredBookmarks.length === 0 && (
+      {!isLoading && filteredBookmarks.length === 0 && (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">🔍</div>
           <h3 className="text-2xl font-bold mb-2">未找到书签</h3>
