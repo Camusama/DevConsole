@@ -301,7 +301,7 @@ const BookmarkActions = ({
           <DialogHeader>
             <DialogTitle>确认删除</DialogTitle>
             <DialogDescription>
-              您确定要删除书签 "{bookmark.title}" 吗？此操作无法撤销。
+              您确定要删除书签 &quot;{bookmark.title}&quot; 吗？此操作无法撤销。
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex justify-between sm:justify-between">
