@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, KeyboardEvent, useEffect } from 'react'
+import { useState, KeyboardEvent, useEffect, useMemo } from 'react'
 import { Plus, Search, Trash2, Edit, Save, X, FolderPlus, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Select,
   SelectContent,
@@ -344,53 +345,75 @@ const BookmarkCard = ({
 }: BookmarkCardProps) => {
   if (isCompact) {
     return (
-      <div
-        key={bookmark._id}
-        className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 group transition-all duration-200 transform hover:scale-[1.02]"
-      >
-        <div className="flex items-center gap-3 flex-1">
-          <BookmarkIcon title={bookmark.title} isCompact={true} />
-          <div>
-            <div className="font-medium">{bookmark.title}</div>
-            {bookmark.description && (
-              <p className="text-sm text-muted-foreground">{bookmark.description}</p>
-            )}
-          </div>
-        </div>
-        <BookmarkActions
-          bookmark={bookmark}
-          editBookmark={editBookmark}
-          deleteBookmark={deleteBookmark}
-          isCompact={true}
-        />
-      </div>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              key={bookmark._id}
+              className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 group transition-all duration-200 transform hover:scale-[1.02]"
+            >
+              <div className="flex items-center gap-3 flex-1">
+                <BookmarkIcon title={bookmark.title} isCompact={true} />
+                <div>
+                  <div className="font-medium">{bookmark.title}</div>
+                  {bookmark.description && (
+                    <p className="text-sm text-muted-foreground truncate max-w-[200px]">
+                      {bookmark.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <BookmarkActions
+                bookmark={bookmark}
+                editBookmark={editBookmark}
+                deleteBookmark={deleteBookmark}
+                isCompact={true}
+              />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <p className="font-mono text-xs">{bookmark.url}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     )
   }
 
   return (
-    <div className="group relative flex flex-col p-4 bg-card text-card-foreground rounded-lg border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden transform hover:scale-[1.02] hover:border-primary/20">
-      <div className="flex items-center gap-3 mb-2">
-        <BookmarkIcon title={bookmark.title} />
-        <div className="font-medium truncate">{bookmark.title}</div>
-      </div>
-      {bookmark.description && (
-        <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{bookmark.description}</p>
-      )}
-      <div className="text-xs text-muted-foreground mt-auto pt-2 border-t flex justify-end items-center">
-        <BookmarkActions
-          bookmark={bookmark}
-          editBookmark={editBookmark}
-          deleteBookmark={deleteBookmark}
-        />
-      </div>
-      <a
-        href={bookmark.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="absolute inset-0 z-10 h-[calc(100%-50px)]"
-        onClick={e => e.stopPropagation()}
-      ></a>
-    </div>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="group relative flex flex-col p-4 bg-card text-card-foreground rounded-lg border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden transform hover:scale-[1.02] hover:border-primary/20">
+            <div className="flex items-center gap-3 mb-2">
+              <BookmarkIcon title={bookmark.title} />
+              <div className="font-medium truncate">{bookmark.title}</div>
+            </div>
+            {bookmark.description && (
+              <p className="text-sm text-muted-foreground mb-2 line-clamp-2 overflow-hidden text-ellipsis">
+                {bookmark.description}
+              </p>
+            )}
+            <div className="text-xs text-muted-foreground mt-auto pt-2 border-t flex justify-end items-center">
+              <BookmarkActions
+                bookmark={bookmark}
+                editBookmark={editBookmark}
+                deleteBookmark={deleteBookmark}
+              />
+            </div>
+            <a
+              href={bookmark.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute inset-0 z-10 h-[calc(100%-50px)]"
+              onClick={e => e.stopPropagation()}
+            ></a>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p className="font-mono text-xs">{bookmark.url}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
 }
 const defaultBookMark = {
@@ -505,29 +528,37 @@ export default function Home() {
   const [currentBookmark, setCurrentBookmark] = useState<Bookmark>({ ...defaultBookMark })
 
   // 从书签数据中提取分类
-  const allCategories = Array.from(new Set(bookmarks.map(bookmark => bookmark.category)))
+  const allCategories = useMemo(
+    () => Array.from(new Set(bookmarks.map(bookmark => bookmark.category))),
+    [bookmarks]
+  )
 
-  // 更新分类顺序当书签或保存的顺序变化时
-  useEffect(() => {
-    // 只在bookmarks或savedCategoryOrder变化时更新categoryOrder
-    if (bookmarks.length > 0) {
-      const currentCategories = Array.from(new Set(bookmarks.map(bookmark => bookmark.category)))
+  // 计算有效的分类顺序
+  const computedCategoryOrder = useMemo(() => {
+    if (bookmarks.length === 0) return []
 
-      if (savedCategoryOrder.length > 0) {
-        // 过滤掉不再存在的分类
-        const validSavedCategories = savedCategoryOrder.filter(cat =>
-          currentCategories.includes(cat)
-        )
+    if (savedCategoryOrder.length > 0) {
+      // 过滤掉不再存在的分类
+      const validSavedCategories = savedCategoryOrder.filter(cat => allCategories.includes(cat))
 
-        // 添加任何不在保存顺序中的新分类
-        const newCategories = currentCategories.filter(cat => !savedCategoryOrder.includes(cat))
+      // 添加任何不在保存顺序中的新分类
+      const newCategories = allCategories.filter(cat => !savedCategoryOrder.includes(cat))
 
-        setCategoryOrder([...validSavedCategories, ...newCategories])
-      } else {
-        setCategoryOrder(currentCategories)
-      }
+      return [...validSavedCategories, ...newCategories]
+    } else {
+      return [...allCategories]
     }
-  }, [bookmarks, savedCategoryOrder])
+  }, [bookmarks, savedCategoryOrder, allCategories])
+
+  // 只在计算出的顺序变化时更新状态
+  useEffect(() => {
+    if (
+      computedCategoryOrder.length > 0 &&
+      JSON.stringify(computedCategoryOrder) !== JSON.stringify(categoryOrder)
+    ) {
+      setCategoryOrder(computedCategoryOrder)
+    }
+  }, [computedCategoryOrder, categoryOrder])
 
   // DnD 传感器
   const sensors = useSensors(
@@ -546,28 +577,28 @@ export default function Home() {
     const { active, over } = event
 
     if (over && active.id !== over.id) {
-      setCategoryOrder(currentOrder => {
-        const oldIndex = currentOrder.indexOf(active.id.toString())
-        const newIndex = currentOrder.indexOf(over.id.toString())
+      const oldIndex = categoryOrder.indexOf(active.id.toString())
+      const newIndex = categoryOrder.indexOf(over.id.toString())
 
-        const newOrder = arrayMove(currentOrder, oldIndex, newIndex)
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove([...categoryOrder], oldIndex, newIndex)
 
         // 保存新顺序到服务器
-        toast.promise(
-          saveCategoryOrderApi(newOrder).then(() => {
-            // 更新SWR缓存，这样UI会立即反映变化
-            refreshCategoryOrder(newOrder, false)
-            return newOrder
-          }),
-          {
-            loading: '保存分类顺序...',
-            success: '分类顺序已更新',
-            error: '保存分类顺序失败',
-          }
-        )
+        saveCategoryOrderApi(newOrder)
+          .then(() => {
+            // 成功后更新SWR缓存
+            refreshCategoryOrder()
+            // 显示成功消息
+            toast.success('分类顺序已更新')
+          })
+          .catch(error => {
+            // 显示错误消息
+            toast.error('保存分类顺序失败: ' + error.message)
+          })
 
-        return newOrder
-      })
+        // 更新本地状态
+        setCategoryOrder(newOrder)
+      }
     }
   }
 
