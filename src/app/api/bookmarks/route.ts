@@ -15,30 +15,76 @@ export async function GET() {
   }
 }
 
-// 创建新书签
+// 创建新书签（支持批量添加）
 export async function POST(request: NextRequest) {
   try {
-    const { title, url, category, description } = await request.json()
+    const data = await request.json()
 
-    if (!title || !url) {
-      return NextResponse.json({ error: '标题和URL是必填项' }, { status: 400 })
+    // 检查是否为批量添加
+    if (Array.isArray(data)) {
+      if (data.length === 0) {
+        return NextResponse.json({ error: '没有提供有效的书签数据' }, { status: 400 })
+      }
+
+      // 验证每个书签
+      for (const item of data) {
+        if (!item.title || !item.url) {
+          return NextResponse.json({ error: '每个书签的标题和URL都是必填项' }, { status: 400 })
+        }
+      }
+
+      const client = await clientPromise
+      const db = client.db('dev-console')
+
+      // 准备批量插入的数据
+      const bookmarks = data.map(item => ({
+        title: item.title,
+        url: item.url,
+        category: item.category || '默认',
+        description: item.description || '',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }))
+
+      const result = await db.collection('bookmarks').insertMany(bookmarks)
+
+      return NextResponse.json(
+        {
+          message: `成功添加 ${result.insertedCount} 个书签`,
+          bookmarks: Object.values(result.insertedIds).map((id, index) => ({
+            ...bookmarks[index],
+            _id: id,
+          })),
+        },
+        { status: 201 }
+      )
+    } else {
+      // 单个书签添加
+      const { title, url, category, description } = data
+
+      if (!title || !url) {
+        return NextResponse.json({ error: '标题和URL是必填项' }, { status: 400 })
+      }
+
+      const client = await clientPromise
+      const db = client.db('dev-console')
+
+      const bookmark = {
+        title,
+        url,
+        category: category || '默认',
+        description: description || '',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      const result = await db.collection('bookmarks').insertOne(bookmark)
+
+      return NextResponse.json(
+        { bookmark: { ...bookmark, _id: result.insertedId } },
+        { status: 201 }
+      )
     }
-
-    const client = await clientPromise
-    const db = client.db('dev-console')
-
-    const bookmark = {
-      title,
-      url,
-      category: category || '默认',
-      description: description || '',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    const result = await db.collection('bookmarks').insertOne(bookmark)
-
-    return NextResponse.json({ bookmark: { ...bookmark, _id: result.insertedId } }, { status: 201 })
   } catch (error) {
     console.log(error)
     return NextResponse.json({ error: '创建书签失败' }, { status: 500 })

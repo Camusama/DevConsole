@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, KeyboardEvent } from 'react'
-import { Plus, Search, Trash2, Edit, Save, X, FolderPlus, ChevronDown } from 'lucide-react'
+import { Plus, Search, Trash2, Edit, Save, X, FolderPlus, ChevronDown, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
@@ -106,6 +107,9 @@ const BookmarkForm = ({
     }
   }
 
+  // 处理批量添加的URL提示
+  const urlPlaceholder = editMode ? '输入URL' : '输入URL，每行一个，可批量添加多个书签'
+
   return (
     <>
       <SheetHeader>
@@ -119,16 +123,34 @@ const BookmarkForm = ({
             value={currentBookmark.title}
             onChange={e => setCurrentBookmark({ ...currentBookmark, title: e.target.value })}
             onKeyDown={handleKeyDown}
+            placeholder="输入书签标题"
           />
         </FormField>
 
         <FormField label="URL" id={`url${idSuffix}`}>
-          <Input
-            id={`url${idSuffix}`}
-            value={currentBookmark.url}
-            onChange={e => setCurrentBookmark({ ...currentBookmark, url: e.target.value })}
-            onKeyDown={handleKeyDown}
-          />
+          {editMode ? (
+            <Input
+              id={`url${idSuffix}`}
+              value={currentBookmark.url}
+              onChange={e => setCurrentBookmark({ ...currentBookmark, url: e.target.value })}
+              onKeyDown={handleKeyDown}
+              placeholder={urlPlaceholder}
+            />
+          ) : (
+            <Textarea
+              id={`url${idSuffix}`}
+              value={currentBookmark.url}
+              onChange={e => setCurrentBookmark({ ...currentBookmark, url: e.target.value })}
+              placeholder={urlPlaceholder}
+              className="min-h-[100px] font-mono text-sm"
+            />
+          )}
+          {!editMode && (
+            <p className="text-xs text-muted-foreground mt-1">
+              <Link2 className="inline-block h-3 w-3 mr-1" />
+              每行输入一个URL，可批量添加多个书签
+            </p>
+          )}
         </FormField>
 
         <FormField label="分类" id={`category${idSuffix}`}>
@@ -311,12 +333,15 @@ const BookmarkCard = ({
         key={bookmark._id}
         className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 group transition-all duration-200 transform hover:scale-[1.02]"
       >
-        <div className="flex items-center gap-3 flex-1">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <BookmarkIcon title={bookmark.title} isCompact={true} />
-          <div>
-            <div className="font-medium">{bookmark.title}</div>
+          <div className="min-w-0">
+            <div className="font-medium truncate">{bookmark.title}</div>
+            <div className="text-xs text-muted-foreground truncate">
+              {bookmark.url.replace(/^https?:\/\//, '')}
+            </div>
             {bookmark.description && (
-              <p className="text-sm text-muted-foreground">{bookmark.description}</p>
+              <p className="text-sm text-muted-foreground truncate">{bookmark.description}</p>
             )}
           </div>
         </div>
@@ -339,10 +364,7 @@ const BookmarkCard = ({
       {bookmark.description && (
         <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{bookmark.description}</p>
       )}
-      <div className="text-xs text-muted-foreground mt-auto pt-2 border-t flex justify-between items-center">
-        <span className="px-2 py-1 rounded-full bg-muted transition-colors duration-300">
-          {bookmark.category}
-        </span>
+      <div className="text-xs text-muted-foreground mt-auto pt-2 border-t flex justify-end items-center">
         <BookmarkActions
           bookmark={bookmark}
           editBookmark={editBookmark}
@@ -377,8 +399,11 @@ const fetchBookmarksApi = async () => {
 }
 
 // 添加或更新书签的 API 函数
-const saveBookmarkApi = async (bookmark: Bookmark) => {
-  const method = bookmark._id ? 'PUT' : 'POST'
+const saveBookmarkApi = async (bookmark: Bookmark | Bookmark[]) => {
+  // 如果是单个书签且有ID，则为更新操作
+  const isUpdate = !Array.isArray(bookmark) && bookmark._id
+  const method = isUpdate ? 'PUT' : 'POST'
+
   const response = await fetch('/api/bookmarks', {
     method,
     headers: {
@@ -448,17 +473,48 @@ export default function Home() {
         return
       }
 
-      toast.promise(saveBookmarkApi(currentBookmark), {
-        loading: '保存中...',
-        success: () => {
-          setCurrentBookmark({ ...defaultBookMark })
-          setEditMode(false)
-          setSheetOpen(false)
-          refreshBookmarks() // 刷新数据
-          return currentBookmark._id ? '书签更新成功' : '书签添加成功'
-        },
-        error: err => `${err.message}`,
-      })
+      // 如果是编辑模式或URL中没有换行符，则按单个书签处理
+      if (editMode || !currentBookmark.url.includes('\n')) {
+        toast.promise(saveBookmarkApi(currentBookmark), {
+          loading: '保存中...',
+          success: () => {
+            setCurrentBookmark({ ...defaultBookMark })
+            setEditMode(false)
+            setSheetOpen(false)
+            refreshBookmarks() // 刷新数据
+            return currentBookmark._id ? '书签更新成功' : '书签添加成功'
+          },
+          error: err => `${err.message}`,
+        })
+      } else {
+        // 批量添加模式
+        const urls = currentBookmark.url.split('\n').filter(url => url.trim() !== '')
+
+        if (urls.length === 0) {
+          toast.error('请输入至少一个有效的URL')
+          return
+        }
+
+        // 创建批量书签数组
+        const bookmarks = urls.map(url => ({
+          title: currentBookmark.title,
+          url: url.trim(),
+          category: currentBookmark.category,
+          description: currentBookmark.description,
+        }))
+
+        toast.promise(saveBookmarkApi(bookmarks), {
+          loading: `正在添加 ${bookmarks.length} 个书签...`,
+          success: () => {
+            setCurrentBookmark({ ...defaultBookMark })
+            setEditMode(false)
+            setSheetOpen(false)
+            refreshBookmarks() // 刷新数据
+            return `成功添加 ${bookmarks.length} 个书签`
+          },
+          error: err => `${err.message}`,
+        })
+      }
     } catch (error) {
       console.error('保存书签失败:', error)
     }
@@ -526,21 +582,22 @@ export default function Home() {
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex gap-2">
-          <div className="relative w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+    <div className="container mx-auto p-4 max-w-7xl">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <h1 className="text-2xl font-bold">书签管理</h1>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="搜索书签..."
-              className="pl-8"
+              className="pl-9 w-full"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
           <Sheet open={sheetOpen} onOpenChange={onSheetOpenChange}>
             <SheetTrigger asChild>
-              <Button>
+              <Button className="w-full sm:w-auto">
                 <Plus className="mr-2 h-4 w-4" /> 添加书签
               </Button>
             </SheetTrigger>
@@ -567,9 +624,9 @@ export default function Home() {
           {/* 骨架屏幕 - 模拟分类和卡片布局 */}
           {[1, 2].map(category => (
             <div key={category} className="w-full">
-              <div className="flex items-center border-b pb-2 mb-4">
+              <div className="flex items-center border-b pb-3 mb-5">
                 <div className="flex items-center gap-2">
-                  <Skeleton className="h-5 w-5 rounded-full" />
+                  <Skeleton className="h-7 w-7 rounded-md" />
                   <Skeleton className="h-8 w-40" />
                 </div>
               </div>
@@ -584,8 +641,7 @@ export default function Home() {
                       </div>
                       <Skeleton className="h-4 w-full mb-2" />
                       <Skeleton className="h-4 w-3/4 mb-2" />
-                      <div className="mt-auto pt-2 border-t flex justify-between items-center">
-                        <Skeleton className="h-5 w-16 rounded-full" />
+                      <div className="mt-auto pt-2 border-t flex justify-end items-center">
                         <div className="flex gap-1">
                           <Skeleton className="h-7 w-7 rounded" />
                           <Skeleton className="h-7 w-7 rounded" />
@@ -608,25 +664,24 @@ export default function Home() {
               className="w-full"
             >
               <CollapsibleTrigger asChild>
-                <div className="flex items-center justify-between border-b pb-2 mb-4 cursor-pointer">
-                  <Button
-                    variant="ghost"
-                    className="flex items-center gap-2 p-0 h-auto hover:bg-transparent"
-                  >
-                    <ChevronDown
-                      className={`h-5 w-5 transition-transform duration-200 ${
-                        !collapsedCategories[category]
-                          ? 'transform rotate-0'
-                          : 'transform rotate-180'
-                      }`}
-                    />
+                <div className="flex items-center justify-between border-b pb-3 mb-5 cursor-pointer group">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-muted rounded-md p-1 group-hover:bg-muted/80 transition-colors">
+                      <ChevronDown
+                        className={`h-5 w-5 transition-transform duration-200 ${
+                          !collapsedCategories[category]
+                            ? 'transform rotate-0'
+                            : 'transform rotate-180'
+                        }`}
+                      />
+                    </div>
                     <h2 className="text-xl font-semibold">
                       {category}{' '}
                       <span className="text-sm text-muted-foreground">
                         ({bookmarksByCategory[category]?.length || 0})
                       </span>
                     </h2>
-                  </Button>
+                  </div>
                 </div>
               </CollapsibleTrigger>
               <CollapsibleContent>
