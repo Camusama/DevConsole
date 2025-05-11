@@ -119,7 +119,7 @@ const BookmarkForm = ({
   const handleCategoryKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      addCategory()
+      void addCategory() // 使用void操作符处理Promise
     }
   }
 
@@ -180,7 +180,7 @@ const BookmarkForm = ({
                   placeholder="新分类名称"
                   onKeyDown={handleCategoryKeyDown}
                 />
-                <Button size="icon" onClick={addCategory}>
+                <Button size="icon" onClick={() => void addCategory()}>
                   <Save className="h-4 w-4" />
                 </Button>
                 <Button size="icon" variant="outline" onClick={() => setShowCategoryInput(false)}>
@@ -688,14 +688,45 @@ export default function Home() {
   }
 
   // 添加新分类
-  const addCategory = () => {
+  const addCategory = async () => {
     if (newCategory && !allCategories.includes(newCategory)) {
-      // 不需要手动更新categories，因为它是从bookmarks中派生的
-      setCurrentBookmark({ ...currentBookmark, category: newCategory })
-      setNewCategory('')
-      setShowCategoryInput(false)
+      try {
+        // 创建一个临时的隐藏书签来保持分类存在
+        const placeholderBookmark: Bookmark = {
+          title: `${newCategory} 分类`,
+          url: `#${newCategory}`,
+          category: newCategory,
+          description: `${newCategory} 分类的占位书签`,
+        }
+
+        // 保存占位书签到数据库
+        await saveBookmarkApi(placeholderBookmark)
+
+        // 更新当前书签的分类
+        setCurrentBookmark({ ...currentBookmark, category: newCategory })
+
+        // 更新分类顺序
+        const newOrder = [...categoryOrder, newCategory]
+        setCategoryOrder(newOrder)
+
+        // 保存分类顺序
+        await saveCategoryOrderApi(newOrder)
+
+        // 刷新数据
+        refreshBookmarks()
+        refreshCategoryOrder()
+
+        setNewCategory('')
+        setShowCategoryInput(false)
+        toast.success(`已添加新分类: ${newCategory}`)
+      } catch (error) {
+        console.error('添加分类失败:', error)
+        toast.error('添加分类失败: ' + (error as Error).message)
+      }
     } else if (allCategories.includes(newCategory)) {
       toast.error('分类已存在')
+    } else if (!newCategory) {
+      toast.error('请输入分类名称')
     }
   }
 
@@ -711,7 +742,10 @@ export default function Home() {
   // 按分类分组书签
   const bookmarksByCategory = allCategories.reduce(
     (acc: Record<string, Bookmark[]>, category: string) => {
-      acc[category] = filteredBookmarks.filter(bookmark => bookmark.category === category)
+      // 过滤掉占位书签（URL以#开头的书签）
+      acc[category] = filteredBookmarks.filter(
+        bookmark => bookmark.category === category && !bookmark.url.startsWith('#')
+      )
       return acc
     },
     {} as Record<string, Bookmark[]>
