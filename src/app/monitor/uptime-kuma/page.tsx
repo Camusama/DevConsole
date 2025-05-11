@@ -580,6 +580,7 @@ export default function Home() {
 
       if (oldIndex !== -1 && newIndex !== -1) {
         const newOrder = arrayMove([...categoryOrder], oldIndex, newIndex)
+        refreshCategoryOrder(newOrder)
 
         // 保存新顺序到服务器
         saveCategoryOrderApi(newOrder)
