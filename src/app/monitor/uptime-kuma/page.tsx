@@ -1,12 +1,26 @@
 'use client'
 
-import { useState, KeyboardEvent } from 'react'
-import { Plus, Search, Trash2, Edit, Save, X, FolderPlus, ChevronDown, Link2 } from 'lucide-react'
+import { useState, KeyboardEvent, useEffect, useRef } from 'react'
+import { Plus, Search, Trash2, Edit, Save, X, FolderPlus, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import {
   Dialog,
   DialogContent,
@@ -34,8 +48,9 @@ import {
   SheetClose,
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
+import DraggableCategory from './_components/DraggableCategory'
 // 书签类型定义
-type Bookmark = {
+export type Bookmark = {
   _id?: string
   title: string
   url: string
@@ -395,6 +410,34 @@ const fetchBookmarksApi = async () => {
   return data.bookmarks || []
 }
 
+// 获取分类顺序的 API 函数
+const fetchCategoryOrderApi = async () => {
+  const response = await fetch('/api/category-order?collection=bookmarks')
+  if (!response.ok) {
+    throw new Error('获取分类顺序失败')
+  }
+  const data = await response.json()
+  return data.categoryOrder || []
+}
+
+// 保存分类顺序的 API 函数
+const saveCategoryOrderApi = async (order: string[]) => {
+  const response = await fetch('/api/category-order', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ order, collectionName: 'bookmarks' }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || '保存分类顺序失败')
+  }
+
+  return await response.json()
+}
+
 // 添加或更新书签的 API 函数
 const saveBookmarkApi = async (bookmark: Bookmark | Bookmark[]) => {
   // 如果是单个书签且有ID，则为更新操作
@@ -441,10 +484,20 @@ export default function Home() {
     dedupingInterval: 10000, // 10秒内不重复请求
   })
 
+  // 使用 SWR 获取分类顺序
+  const { data: savedCategoryOrder = [] } = useSWR<string[]>(
+    '/api/category-order?collection=bookmarks',
+    fetchCategoryOrderApi,
+    {
+      revalidateOnFocus: false,
+    }
+  )
+
   // 状态管理
   const [searchTerm, setSearchTerm] = useState('')
   const [newCategory, setNewCategory] = useState('')
   const [showCategoryInput, setShowCategoryInput] = useState(false)
+  const [categoryOrder, setCategoryOrder] = useState<string[]>([])
 
   // 编辑状态
   const [editMode, setEditMode] = useState(false)
@@ -452,7 +505,60 @@ export default function Home() {
   const [currentBookmark, setCurrentBookmark] = useState<Bookmark>({ ...defaultBookMark })
 
   // 从书签数据中提取分类
-  const categories = Array.from(new Set(bookmarks.map(bookmark => bookmark.category)))
+  const allCategories = Array.from(new Set(bookmarks.map(bookmark => bookmark.category)))
+  // 更新分类顺序当书签或保存的顺序变化时
+  useEffect(() => {
+    if (savedCategoryOrder.length > 0) {
+      // 过滤掉不再存在的分类
+      const validSavedCategories = savedCategoryOrder.filter(cat => allCategories.includes(cat))
+
+      // 添加任何不在保存顺序中的新分类
+      const newCategories = allCategories.filter(cat => !savedCategoryOrder.includes(cat))
+
+      setCategoryOrder([...validSavedCategories, ...newCategories])
+    } else {
+      setCategoryOrder(allCategories)
+    }
+  }, [savedCategoryOrder])
+
+  // DnD 传感器
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  // 处理拖拽结束
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      setCategoryOrder(currentOrder => {
+        const oldIndex = currentOrder.indexOf(active.id.toString())
+        const newIndex = currentOrder.indexOf(over.id.toString())
+
+        const newOrder = arrayMove(currentOrder, oldIndex, newIndex)
+
+        // 保存新顺序到服务器
+        toast.promise(saveCategoryOrderApi(newOrder), {
+          loading: '保存分类顺序...',
+          success: () => {
+            // 刷新页面以获取最新的分类顺序
+            window.location.reload()
+            return '分类顺序已更新'
+          },
+          error: '保存分类顺序失败',
+        })
+
+        return newOrder
+      })
+    }
+  }
 
   const onSheetOpenChange = (open: boolean) => {
     if (!open) {
@@ -542,12 +648,12 @@ export default function Home() {
 
   // 添加新分类
   const addCategory = () => {
-    if (newCategory && !categories.includes(newCategory)) {
+    if (newCategory && !allCategories.includes(newCategory)) {
       // 不需要手动更新categories，因为它是从bookmarks中派生的
       setCurrentBookmark({ ...currentBookmark, category: newCategory })
       setNewCategory('')
       setShowCategoryInput(false)
-    } else if (categories.includes(newCategory)) {
+    } else if (allCategories.includes(newCategory)) {
       toast.error('分类已存在')
     }
   }
@@ -562,10 +668,13 @@ export default function Home() {
   })
 
   // 按分类分组书签
-  const bookmarksByCategory = categories.reduce((acc, category) => {
-    acc[category] = filteredBookmarks.filter(bookmark => bookmark.category === category)
-    return acc
-  }, {} as Record<string, Bookmark[]>)
+  const bookmarksByCategory = allCategories.reduce(
+    (acc: Record<string, Bookmark[]>, category: string) => {
+      acc[category] = filteredBookmarks.filter(bookmark => bookmark.category === category)
+      return acc
+    },
+    {} as Record<string, Bookmark[]>
+  )
 
   // 控制分类折叠状态
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({})
@@ -602,7 +711,7 @@ export default function Home() {
               <BookmarkForm
                 currentBookmark={currentBookmark}
                 setCurrentBookmark={setCurrentBookmark}
-                categories={categories}
+                categories={allCategories}
                 newCategory={newCategory}
                 setNewCategory={setNewCategory}
                 showCategoryInput={showCategoryInput}
@@ -651,56 +760,32 @@ export default function Home() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
-          {categories.map(category => (
-            <Collapsible
-              key={category}
-              defaultOpen={true}
-              open={!collapsedCategories[category]}
-              onOpenChange={() => toggleCategory(category)}
-              className="w-full"
-            >
-              <CollapsibleTrigger asChild>
-                <div className="flex items-center justify-between border-b pb-3 mb-5 cursor-pointer group">
-                  <div className="flex items-center gap-2">
-                    <div className="bg-muted rounded-md p-1 group-hover:bg-muted/80 transition-colors">
-                      <ChevronDown
-                        className={`h-5 w-5 transition-transform duration-200 ${
-                          !collapsedCategories[category]
-                            ? 'transform rotate-0'
-                            : 'transform rotate-180'
-                        }`}
-                      />
-                    </div>
-                    <h2 className="text-xl font-semibold">
-                      {category}{' '}
-                      <span className="text-sm text-muted-foreground">
-                        ({bookmarksByCategory[category]?.length || 0})
-                      </span>
-                    </h2>
-                  </div>
-                </div>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                {bookmarksByCategory[category]?.length ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {bookmarksByCategory[category].map(bookmark => (
-                      <BookmarkCard
-                        key={bookmark._id}
-                        bookmark={bookmark}
-                        editBookmark={editBookmark}
-                        deleteBookmark={deleteBookmark}
-                        isCompact={false}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-muted-foreground">该分类下暂无书签</div>
-                )}
-              </CollapsibleContent>
-            </Collapsible>
-          ))}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={categoryOrder} strategy={verticalListSortingStrategy}>
+            <div className="grid grid-cols-1 gap-6">
+              {categoryOrder.map((category: string) => (
+                <DraggableCategory
+                  key={category}
+                  id={category}
+                  category={category}
+                  bookmarks={bookmarksByCategory[category] || []}
+                  isCollapsed={!!collapsedCategories[category]}
+                  toggleCategory={toggleCategory}
+                >
+                  {bookmarksByCategory[category]?.map((bookmark: Bookmark) => (
+                    <BookmarkCard
+                      key={bookmark._id}
+                      bookmark={bookmark}
+                      editBookmark={editBookmark}
+                      deleteBookmark={deleteBookmark}
+                      isCompact={false}
+                    />
+                  ))}
+                </DraggableCategory>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {!isLoading && filteredBookmarks.length === 0 && (
