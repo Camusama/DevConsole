@@ -29,7 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+
 import {
   Select,
   SelectContent,
@@ -343,77 +343,75 @@ const BookmarkCard = ({
   deleteBookmark,
   isCompact = false,
 }: BookmarkCardProps) => {
+  // 处理卡片点击事件
+  const handleCardClick = () => {
+    window.open(bookmark.url, '_blank', 'noopener,noreferrer')
+  }
+
   if (isCompact) {
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div
-              key={bookmark._id}
-              className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 group transition-all duration-200 transform hover:scale-[1.02]"
-            >
-              <div className="flex items-center gap-3 flex-1">
-                <BookmarkIcon title={bookmark.title} isCompact={true} />
-                <div>
-                  <div className="font-medium">{bookmark.title}</div>
-                  {bookmark.description && (
-                    <p className="text-sm text-muted-foreground truncate max-w-[200px]">
-                      {bookmark.description}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <BookmarkActions
-                bookmark={bookmark}
-                editBookmark={editBookmark}
-                deleteBookmark={deleteBookmark}
-                isCompact={true}
-              />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            <p className="font-mono text-xs">{bookmark.url}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <div
+        key={bookmark._id}
+        className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 group transition-all duration-200 transform hover:scale-[1.02] cursor-pointer"
+        onClick={handleCardClick}
+      >
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="flex-shrink-0">
+            <BookmarkIcon title={bookmark.title} isCompact={true} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="font-medium truncate">{bookmark.title}</div>
+            <p className="text-xs text-muted-foreground truncate">{bookmark.url}</p>
+            {bookmark.description && (
+              <p className="text-sm text-muted-foreground truncate">{bookmark.description}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex-shrink-0 ml-2" onClick={e => e.stopPropagation()}>
+          <BookmarkActions
+            bookmark={bookmark}
+            editBookmark={editBookmark}
+            deleteBookmark={deleteBookmark}
+            isCompact={true}
+          />
+        </div>
+      </div>
     )
   }
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="group relative flex flex-col p-4 bg-card text-card-foreground rounded-lg border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden transform hover:scale-[1.02] hover:border-primary/20">
-            <div className="flex items-center gap-3 mb-2">
-              <BookmarkIcon title={bookmark.title} />
-              <div className="font-medium truncate">{bookmark.title}</div>
-            </div>
-            {bookmark.description && (
-              <p className="text-sm text-muted-foreground mb-2 line-clamp-2 overflow-hidden text-ellipsis">
-                {bookmark.description}
-              </p>
-            )}
-            <div className="text-xs text-muted-foreground mt-auto pt-2 border-t flex justify-end items-center">
-              <BookmarkActions
-                bookmark={bookmark}
-                editBookmark={editBookmark}
-                deleteBookmark={deleteBookmark}
-              />
-            </div>
-            <a
-              href={bookmark.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="absolute inset-0 z-10 h-[calc(100%-50px)]"
-              onClick={e => e.stopPropagation()}
-            ></a>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">
-          <p className="font-mono text-xs">{bookmark.url}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <div
+      className="group relative flex flex-col p-4 bg-card text-card-foreground rounded-lg border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden transform hover:scale-[1.02] hover:border-primary/20 cursor-pointer"
+      onClick={handleCardClick}
+    >
+      <div className="flex items-center gap-3 mb-2 min-w-0">
+        <div className="flex-shrink-0">
+          <BookmarkIcon title={bookmark.title} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="font-medium truncate">{bookmark.title}</div>
+        </div>
+      </div>
+
+      <p className="text-xs text-muted-foreground truncate mb-1">{bookmark.url}</p>
+
+      {bookmark.description && (
+        <p className="text-sm text-muted-foreground mb-2 line-clamp-2 overflow-hidden text-ellipsis">
+          {bookmark.description}
+        </p>
+      )}
+
+      <div
+        className="text-xs text-muted-foreground mt-auto pt-2 border-t flex justify-end items-center"
+        onClick={e => e.stopPropagation()}
+      >
+        <BookmarkActions
+          bookmark={bookmark}
+          editBookmark={editBookmark}
+          deleteBookmark={deleteBookmark}
+        />
+      </div>
+    </div>
   )
 }
 const defaultBookMark = {
