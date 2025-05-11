@@ -26,14 +26,27 @@ const DraggableCategory = ({
 }: DraggableCategoryProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
+    animateLayoutChanges: () => false, // 禁用布局动画以提高性能
+    transition: {
+      duration: 150, // 更快的过渡动画
+      easing: 'cubic-bezier(0.25, 1, 0.5, 1)', // 更平滑的缓动函数
+    },
   })
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 10 : 1,
-    opacity: isDragging ? 0.8 : 1,
-  }
+    zIndex: isDragging ? 50 : 1,
+    opacity: isDragging ? 0.9 : 1,
+    // 添加拖动时的视觉反馈
+    ...(isDragging
+      ? {
+          boxShadow: '0 5px 15px rgba(0, 0, 0, 0.15)',
+          background: 'var(--background)',
+          borderRadius: '0.5rem',
+        }
+      : {}),
+  } as React.CSSProperties
 
   return (
     <div ref={setNodeRef} style={style} className="w-full mb-6">

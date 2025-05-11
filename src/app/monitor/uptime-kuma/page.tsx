@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, KeyboardEvent, useEffect, useMemo } from 'react'
-import { Plus, Search, Trash2, Edit, Save, X, FolderPlus, Link2 } from 'lucide-react'
+import { Plus, Search, Save, X, FolderPlus, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -21,14 +21,6 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 
 import {
   Select,
@@ -50,13 +42,16 @@ import {
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import DraggableCategory from './_components/DraggableCategory'
+import DraggableBookmark from './_components/DraggableBookmark'
 // 书签类型定义
 export type Bookmark = {
   _id?: string
+  _tempId?: string // 临时ID，用于没有_id的书签
   title: string
   url: string
   category: string
   description: string
+  order?: number
   createdAt?: Date
   updatedAt?: Date
 }
@@ -70,7 +65,7 @@ type BookmarkFormProps = {
   setNewCategory: (category: string) => void
   showCategoryInput: boolean
   setShowCategoryInput: (show: boolean) => void
-  addCategory: () => void
+  addCategory: () => Promise<void>
   saveBookmark: () => void
   editMode: boolean
   isMobile?: boolean
@@ -119,7 +114,11 @@ const BookmarkForm = ({
   const handleCategoryKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      addCategory()
+      toast.promise(Promise.resolve(addCategory()), {
+        loading: '创建分类中...',
+        success: null,
+        error: null,
+      })
     }
   }
 
@@ -180,7 +179,16 @@ const BookmarkForm = ({
                   placeholder="新分类名称"
                   onKeyDown={handleCategoryKeyDown}
                 />
-                <Button size="icon" onClick={addCategory}>
+                <Button
+                  size="icon"
+                  onClick={() => {
+                    toast.promise(Promise.resolve(addCategory()), {
+                      loading: '创建分类中...',
+                      success: null,
+                      error: null,
+                    })
+                  }}
+                >
                   <Save className="h-4 w-4" />
                 </Button>
                 <Button size="icon" variant="outline" onClick={() => setShowCategoryInput(false)}>
@@ -233,187 +241,6 @@ const BookmarkForm = ({
   )
 }
 
-// 书签卡片组件
-type BookmarkCardProps = {
-  bookmark: Bookmark
-  editBookmark: (bookmark: Bookmark) => void
-  deleteBookmark: (id: string) => void
-  isCompact?: boolean
-}
-
-// 书签操作按钮组件
-type BookmarkActionsProps = {
-  bookmark: Bookmark
-  editBookmark: (bookmark: Bookmark) => void
-  deleteBookmark: (id: string) => void
-  isCompact?: boolean
-}
-
-const BookmarkActions = ({
-  bookmark,
-  editBookmark,
-  deleteBookmark,
-  isCompact = false,
-}: BookmarkActionsProps) => {
-  const iconSize = isCompact ? 'h-4 w-4' : 'h-3 w-3'
-  const buttonSize = isCompact ? '' : 'h-7 w-7'
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-
-  const handleDelete = () => {
-    if (bookmark._id) {
-      deleteBookmark(bookmark._id)
-      setShowDeleteDialog(false)
-    }
-  }
-
-  return (
-    <>
-      <div className="flex gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          className={buttonSize}
-          onClick={e => {
-            e.preventDefault()
-            e.stopPropagation()
-            editBookmark(bookmark)
-          }}
-        >
-          <Edit className={iconSize} />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className={buttonSize}
-          onClick={e => {
-            e.preventDefault()
-            e.stopPropagation()
-            setShowDeleteDialog(true)
-          }}
-        >
-          <Trash2 className={iconSize} />
-        </Button>
-      </div>
-
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>确认删除</DialogTitle>
-            <DialogDescription>
-              您确定要删除书签 "{bookmark.title}" 吗？此操作无法撤销。
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex justify-between sm:justify-between">
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-              取消
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              删除
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  )
-}
-
-// 书签图标组件
-type BookmarkIconProps = {
-  title: string
-  isCompact?: boolean
-}
-
-const BookmarkIcon = ({ title, isCompact = false }: BookmarkIconProps) => {
-  const size = isCompact ? 'w-6 h-6' : 'w-8 h-8'
-  const textSize = isCompact ? 'text-xs' : ''
-
-  return (
-    <div
-      className={`${size} rounded bg-muted flex items-center justify-center text-muted-foreground ${textSize} font-medium`}
-    >
-      {title.charAt(0).toUpperCase()}
-    </div>
-  )
-}
-
-const BookmarkCard = ({
-  bookmark,
-  editBookmark,
-  deleteBookmark,
-  isCompact = false,
-}: BookmarkCardProps) => {
-  // 处理卡片点击事件
-  const handleCardClick = () => {
-    window.open(bookmark.url, '_blank', 'noopener,noreferrer')
-  }
-
-  if (isCompact) {
-    return (
-      <div
-        key={bookmark._id}
-        className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 group transition-all duration-200 transform hover:scale-[1.02] cursor-pointer"
-        onClick={handleCardClick}
-      >
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="flex-shrink-0">
-            <BookmarkIcon title={bookmark.title} isCompact={true} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="font-medium truncate">{bookmark.title}</div>
-            <p className="text-xs text-muted-foreground truncate">{bookmark.url}</p>
-            {bookmark.description && (
-              <p className="text-sm text-muted-foreground truncate">{bookmark.description}</p>
-            )}
-          </div>
-        </div>
-        <div className="flex-shrink-0 ml-2" onClick={e => e.stopPropagation()}>
-          <BookmarkActions
-            bookmark={bookmark}
-            editBookmark={editBookmark}
-            deleteBookmark={deleteBookmark}
-            isCompact={true}
-          />
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div
-      className="group relative flex flex-col p-4 bg-card text-card-foreground rounded-lg border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden transform hover:scale-[1.02] hover:border-primary/20 cursor-pointer"
-      onClick={handleCardClick}
-    >
-      <div className="flex items-center gap-3 mb-2 min-w-0">
-        <div className="flex-shrink-0">
-          <BookmarkIcon title={bookmark.title} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="font-medium truncate">{bookmark.title}</div>
-        </div>
-      </div>
-
-      <p className="text-xs text-muted-foreground truncate mb-1">{bookmark.url}</p>
-
-      {bookmark.description && (
-        <p className="text-sm text-muted-foreground mb-2 line-clamp-2 overflow-hidden text-ellipsis">
-          {bookmark.description}
-        </p>
-      )}
-
-      <div
-        className="text-xs text-muted-foreground mt-auto pt-2 border-t flex justify-end items-center"
-        onClick={e => e.stopPropagation()}
-      >
-        <BookmarkActions
-          bookmark={bookmark}
-          editBookmark={editBookmark}
-          deleteBookmark={deleteBookmark}
-        />
-      </div>
-    </div>
-  )
-}
 const defaultBookMark = {
   title: '',
   url: '',
@@ -494,6 +321,34 @@ const deleteBookmarkApi = async (id: string) => {
 
   return await response.json()
 }
+
+// 获取书签顺序的 API 函数
+const fetchBookmarkOrderApi = async (category: string) => {
+  const response = await fetch(`/api/bookmark-order?category=${encodeURIComponent(category)}`)
+  if (!response.ok) {
+    throw new Error('获取书签顺序失败')
+  }
+  const data = await response.json()
+  return data.bookmarkOrder || []
+}
+
+// 保存书签顺序的 API 函数
+const saveBookmarkOrderApi = async (order: string[], category: string) => {
+  const response = await fetch('/api/bookmark-order', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ order, category }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || '保存书签顺序失败')
+  }
+
+  return await response.json()
+}
 export default function Home() {
   // 使用 SWR 获取书签数据
   const {
@@ -519,6 +374,7 @@ export default function Home() {
   const [newCategory, setNewCategory] = useState('')
   const [showCategoryInput, setShowCategoryInput] = useState(false)
   const [categoryOrder, setCategoryOrder] = useState<string[]>([])
+  const [bookmarkOrders, setBookmarkOrders] = useState<Record<string, string[]>>({})
 
   // 编辑状态
   const [editMode, setEditMode] = useState(false)
@@ -558,11 +414,39 @@ export default function Home() {
     }
   }, [computedCategoryOrder, categoryOrder])
 
+  // 加载每个分类的书签顺序
+  useEffect(() => {
+    const loadBookmarkOrders = async () => {
+      if (allCategories.length === 0) return
+
+      const orders: Record<string, string[]> = {}
+
+      for (const category of allCategories) {
+        try {
+          const order = await fetchBookmarkOrderApi(category)
+          orders[category] = order
+        } catch (error) {
+          console.error(`Error loading bookmark order for ${category}:`, error)
+          // 如果获取失败，使用空数组
+          orders[category] = []
+        }
+      }
+
+      setBookmarkOrders(orders)
+    }
+
+    loadBookmarkOrders()
+  }, [allCategories])
+
   // DnD 传感器
   const sensors = useSensors(
     useSensor(PointerSensor, {
+      // 减小激活距离，使拖动更灵敏
       activationConstraint: {
-        distance: 8,
+        distance: 3,
+        // 添加延迟约束，防止意外触发
+        delay: 50,
+        tolerance: 5,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -570,8 +454,8 @@ export default function Home() {
     })
   )
 
-  // 处理拖拽结束
-  const handleDragEnd = (event: DragEndEvent) => {
+  // 处理分类拖拽结束
+  const handleCategoryDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
 
     if (over && active.id !== over.id) {
@@ -581,21 +465,51 @@ export default function Home() {
       if (oldIndex !== -1 && newIndex !== -1) {
         const newOrder = arrayMove([...categoryOrder], oldIndex, newIndex)
 
-        // 保存新顺序到服务器
-        saveCategoryOrderApi(newOrder)
-          .then(() => {
-            // 成功后更新SWR缓存
-            refreshCategoryOrder()
-            // 显示成功消息
-            toast.success('分类顺序已更新')
-          })
-          .catch(error => {
-            // 显示错误消息
-            toast.error('保存分类顺序失败: ' + error.message)
-          })
-
-        // 更新本地状态
+        // 立即更新本地状态和SWR缓存
         setCategoryOrder(newOrder)
+        refreshCategoryOrder(newOrder)
+
+        // 使用toast.promise来显示保存进度
+        toast.promise(saveCategoryOrderApi(newOrder), {
+          loading: '保存分类顺序中...',
+          success: () => {
+            // 成功后再次更新SWR缓存以确保同步
+            refreshCategoryOrder()
+            return '分类顺序已更新'
+          },
+          error: error => `保存分类顺序失败: ${error.message}`,
+        })
+      }
+    }
+  }
+
+  // 处理书签拖拽结束
+  const handleBookmarkDragEnd = (event: DragEndEvent, category: string) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      // 获取当前分类的书签顺序
+      const currentOrder = [...(bookmarkOrders[category] || [])]
+
+      const oldIndex = currentOrder.indexOf(active.id.toString())
+      const newIndex = currentOrder.indexOf(over.id.toString())
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        // 使用arrayMove创建新的排序数组
+        const newOrder = arrayMove(currentOrder, oldIndex, newIndex)
+
+        // 立即更新本地状态，确保UI立即反映变化
+        setBookmarkOrders(prev => ({
+          ...prev,
+          [category]: newOrder,
+        }))
+
+        // 使用toast.promise来显示保存进度
+        toast.promise(saveBookmarkOrderApi(newOrder, category), {
+          loading: '保存书签顺序中...',
+          success: '书签顺序已更新',
+          error: error => `保存书签顺序失败: ${error.message}`,
+        })
       }
     }
   }
@@ -687,14 +601,46 @@ export default function Home() {
   }
 
   // 添加新分类
-  const addCategory = () => {
-    if (newCategory && !allCategories.includes(newCategory)) {
-      // 不需要手动更新categories，因为它是从bookmarks中派生的
+  const addCategory = async () => {
+    if (!newCategory.trim()) {
+      toast.error('分类名称不能为空')
+      return
+    }
+
+    if (!allCategories.includes(newCategory)) {
+      try {
+        // 创建一个临时书签来确保分类被创建
+        const tempBookmark: Bookmark = {
+          title: `${newCategory} 分类`,
+          url: `https://example.com/${newCategory.toLowerCase().replace(/\s+/g, '-')}`,
+          category: newCategory,
+          description: `${newCategory} 分类的描述`,
+        }
+
+        // 保存临时书签以创建分类
+        await saveBookmarkApi(tempBookmark)
+
+        // 更新当前书签的分类
+        setCurrentBookmark({ ...currentBookmark, category: newCategory })
+
+        // 刷新书签列表以获取新分类
+        refreshBookmarks()
+
+        // 更新UI状态
+        setNewCategory('')
+        setShowCategoryInput(false)
+
+        toast.success(`已创建新分类: ${newCategory}`)
+      } catch (error) {
+        console.error('创建分类失败:', error)
+        toast.error('创建分类失败')
+      }
+    } else {
+      // 如果分类已存在，只需更新当前书签的分类
       setCurrentBookmark({ ...currentBookmark, category: newCategory })
       setNewCategory('')
       setShowCategoryInput(false)
-    } else if (allCategories.includes(newCategory)) {
-      toast.error('分类已存在')
+      toast.info('已选择现有分类')
     }
   }
 
@@ -800,29 +746,97 @@ export default function Home() {
           ))}
         </div>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleCategoryDragEnd}
+          autoScroll={{
+            threshold: {
+              x: 0.1,
+              y: 0.1,
+            },
+          }}
+        >
           <SortableContext items={categoryOrder} strategy={verticalListSortingStrategy}>
             <div className="grid grid-cols-1 gap-6">
-              {categoryOrder.map((category: string) => (
-                <DraggableCategory
-                  key={category}
-                  id={category}
-                  category={category}
-                  bookmarks={bookmarksByCategory[category] || []}
-                  isCollapsed={!!collapsedCategories[category]}
-                  toggleCategory={toggleCategory}
-                >
-                  {bookmarksByCategory[category]?.map((bookmark: Bookmark) => (
-                    <BookmarkCard
-                      key={bookmark._id}
-                      bookmark={bookmark}
-                      editBookmark={editBookmark}
-                      deleteBookmark={deleteBookmark}
-                      isCompact={false}
-                    />
-                  ))}
-                </DraggableCategory>
-              ))}
+              {categoryOrder.map((category: string) => {
+                // 获取当前分类的书签
+                const categoryBookmarks = bookmarksByCategory[category] || []
+
+                // 获取当前分类的书签顺序
+                const bookmarkOrder = bookmarkOrders[category] || []
+
+                // 确保每个书签都有一个有效的ID用于排序
+                // 如果书签没有_id，使用其索引作为临时ID
+                const bookmarksWithIds = categoryBookmarks.map((bookmark, index) => {
+                  if (!bookmark._id) {
+                    return { ...bookmark, _tempId: `temp-${index}` }
+                  }
+                  return bookmark
+                })
+
+                // 创建一个包含所有书签ID的数组，用于排序
+                const bookmarkIds = bookmarksWithIds.map(bookmark => {
+                  // 确保返回一个非空字符串作为ID
+                  return (
+                    bookmark._id ||
+                    bookmark._tempId ||
+                    `fallback-${Math.random().toString(36).substring(2, 9)}`
+                  )
+                })
+
+                // 合并已有顺序和新书签
+                const sortedBookmarkIds = [
+                  // 首先包含已有顺序中的ID（如果它们仍然存在于当前书签中）
+                  ...bookmarkOrder.filter(id => bookmarkIds.includes(id)),
+                  // 然后添加任何不在已有顺序中的新书签ID
+                  ...bookmarkIds.filter(id => !bookmarkOrder.includes(id)),
+                ]
+
+                return (
+                  <DraggableCategory
+                    key={category}
+                    id={category}
+                    category={category}
+                    bookmarks={categoryBookmarks}
+                    isCollapsed={!!collapsedCategories[category]}
+                    toggleCategory={toggleCategory}
+                  >
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={event => handleBookmarkDragEnd(event, category)}
+                      autoScroll={{
+                        threshold: {
+                          x: 0.1,
+                          y: 0.1,
+                        },
+                      }}
+                    >
+                      <SortableContext
+                        items={sortedBookmarkIds}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {sortedBookmarkIds.map(bookmarkId => {
+                          const bookmark = categoryBookmarks.find(b => b._id === bookmarkId)
+                          if (!bookmark) return null
+
+                          return (
+                            <DraggableBookmark
+                              key={bookmarkId}
+                              id={bookmarkId}
+                              bookmark={bookmark}
+                              editBookmark={editBookmark}
+                              deleteBookmark={deleteBookmark}
+                              isCompact={false}
+                            />
+                          )
+                        })}
+                      </SortableContext>
+                    </DndContext>
+                  </DraggableCategory>
+                )
+              })}
             </div>
           </SortableContext>
         </DndContext>
