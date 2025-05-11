@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, KeyboardEvent, useEffect, useRef } from 'react'
+import { useState, KeyboardEvent, useEffect } from 'react'
 import { Plus, Search, Trash2, Edit, Save, X, FolderPlus, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -485,7 +485,7 @@ export default function Home() {
   })
 
   // 使用 SWR 获取分类顺序
-  const { data: savedCategoryOrder = [] } = useSWR<string[]>(
+  const { data: savedCategoryOrder = [], mutate: refreshCategoryOrder } = useSWR<string[]>(
     '/api/category-order?collection=bookmarks',
     fetchCategoryOrderApi,
     {
@@ -506,20 +506,28 @@ export default function Home() {
 
   // 从书签数据中提取分类
   const allCategories = Array.from(new Set(bookmarks.map(bookmark => bookmark.category)))
+
   // 更新分类顺序当书签或保存的顺序变化时
   useEffect(() => {
-    if (savedCategoryOrder.length > 0) {
-      // 过滤掉不再存在的分类
-      const validSavedCategories = savedCategoryOrder.filter(cat => allCategories.includes(cat))
+    // 只在bookmarks或savedCategoryOrder变化时更新categoryOrder
+    if (bookmarks.length > 0) {
+      const currentCategories = Array.from(new Set(bookmarks.map(bookmark => bookmark.category)))
 
-      // 添加任何不在保存顺序中的新分类
-      const newCategories = allCategories.filter(cat => !savedCategoryOrder.includes(cat))
+      if (savedCategoryOrder.length > 0) {
+        // 过滤掉不再存在的分类
+        const validSavedCategories = savedCategoryOrder.filter(cat =>
+          currentCategories.includes(cat)
+        )
 
-      setCategoryOrder([...validSavedCategories, ...newCategories])
-    } else {
-      setCategoryOrder(allCategories)
+        // 添加任何不在保存顺序中的新分类
+        const newCategories = currentCategories.filter(cat => !savedCategoryOrder.includes(cat))
+
+        setCategoryOrder([...validSavedCategories, ...newCategories])
+      } else {
+        setCategoryOrder(currentCategories)
+      }
     }
-  }, [savedCategoryOrder])
+  }, [bookmarks, savedCategoryOrder])
 
   // DnD 传感器
   const sensors = useSensors(
@@ -545,15 +553,18 @@ export default function Home() {
         const newOrder = arrayMove(currentOrder, oldIndex, newIndex)
 
         // 保存新顺序到服务器
-        toast.promise(saveCategoryOrderApi(newOrder), {
-          loading: '保存分类顺序...',
-          success: () => {
-            // 刷新页面以获取最新的分类顺序
-            window.location.reload()
-            return '分类顺序已更新'
-          },
-          error: '保存分类顺序失败',
-        })
+        toast.promise(
+          saveCategoryOrderApi(newOrder).then(() => {
+            // 更新SWR缓存，这样UI会立即反映变化
+            refreshCategoryOrder(newOrder, false)
+            return newOrder
+          }),
+          {
+            loading: '保存分类顺序...',
+            success: '分类顺序已更新',
+            error: '保存分类顺序失败',
+          }
+        )
 
         return newOrder
       })
