@@ -617,16 +617,61 @@ export default function Home() {
         return
       }
 
+      // 检查是否有新分类需要创建
+      const isNewCategory = showCategoryInput && newCategory && !allCategories.includes(newCategory)
+
+      // 如果有新分类，先创建分类
+      if (isNewCategory) {
+        try {
+          // 创建一个临时的隐藏书签来保持分类存在
+          const placeholderBookmark: Bookmark = {
+            title: `${newCategory} 分类`,
+            url: `#${newCategory}`,
+            category: newCategory,
+            description: `${newCategory} 分类的占位书签`,
+          }
+
+          // 保存占位书签到数据库
+          await saveBookmarkApi(placeholderBookmark)
+
+          // 更新当前书签的分类
+          setCurrentBookmark(prev => ({ ...prev, category: newCategory }))
+
+          // 更新分类顺序
+          const newOrder = [...categoryOrder, newCategory]
+          setCategoryOrder(newOrder)
+
+          // 保存分类顺序
+          await saveCategoryOrderApi(newOrder)
+
+          // 刷新分类数据
+          refreshCategoryOrder()
+
+          setNewCategory('')
+          setShowCategoryInput(false)
+          toast.success(`已添加新分类: ${newCategory}`)
+        } catch (error) {
+          console.error('添加分类失败:', error)
+          toast.error('添加分类失败: ' + (error as Error).message)
+          return
+        }
+      }
+
       // 如果是编辑模式或URL中没有换行符，则按单个书签处理
       if (editMode || !currentBookmark.url.includes('\n')) {
-        toast.promise(saveBookmarkApi(currentBookmark), {
+        // 如果刚刚创建了新分类，使用新分类名称
+        const bookmarkToSave = isNewCategory
+          ? { ...currentBookmark, category: newCategory }
+          : currentBookmark
+
+        toast.promise(saveBookmarkApi(bookmarkToSave), {
           loading: '保存中...',
           success: () => {
             setCurrentBookmark({ ...defaultBookMark })
             setEditMode(false)
             setSheetOpen(false)
             refreshBookmarks() // 刷新数据
-            return currentBookmark._id ? '书签更新成功' : '书签添加成功'
+            return bookmarkToSave._id ? '书签更新成功' : '书签添加成功'
           },
           error: err => `${err.message}`,
         })
@@ -639,11 +684,14 @@ export default function Home() {
           return
         }
 
+        // 如果刚刚创建了新分类，使用新分类名称
+        const categoryToUse = isNewCategory ? newCategory : currentBookmark.category
+
         // 创建批量书签数组
         const bookmarks = urls.map(url => ({
           title: currentBookmark.title,
           url: url.trim(),
-          category: currentBookmark.category,
+          category: categoryToUse,
           description: currentBookmark.description,
         }))
 
@@ -667,14 +715,54 @@ export default function Home() {
   // 删除书签
   const deleteBookmark = async (id: string) => {
     try {
-      toast.promise(deleteBookmarkApi(id), {
-        loading: '删除中...',
-        success: () => {
-          refreshBookmarks() // 刷新数据
-          return '书签删除成功'
-        },
-        error: err => `${err.message}`,
-      })
+      // 找到要删除的书签
+      const bookmarkToDelete = bookmarks.find(b => b._id === id)
+      if (!bookmarkToDelete) {
+        toast.error('找不到要删除的书签')
+        return
+      }
+
+      // 检查这个分类下是否只有这一个可见书签（排除占位书签）
+      const categoryBookmarks = bookmarks.filter(
+        b => b.category === bookmarkToDelete.category && !b.url.startsWith('#')
+      )
+      const isLastInCategory = categoryBookmarks.length === 1
+
+      // 删除书签
+      await deleteBookmarkApi(id)
+
+      // 显示成功消息并刷新数据
+      toast.success('书签删除成功')
+      refreshBookmarks()
+
+      // 如果是分类中的最后一个可见书签，则从分类顺序中删除该分类
+      if (isLastInCategory && bookmarkToDelete.category !== '默认') {
+        const newOrder = categoryOrder.filter(c => c !== bookmarkToDelete.category)
+
+        // 查找并删除该分类的占位书签
+        const placeholderBookmark = bookmarks.find(
+          b => b.category === bookmarkToDelete.category && b.url.startsWith('#')
+        )
+
+        if (placeholderBookmark && placeholderBookmark._id) {
+          try {
+            await deleteBookmarkApi(placeholderBookmark._id)
+          } catch (error) {
+            console.error('删除占位书签失败:', error)
+          }
+        }
+
+        // 保存新的分类顺序
+        try {
+          await saveCategoryOrderApi(newOrder)
+          setCategoryOrder(newOrder)
+          refreshCategoryOrder()
+          toast.success(`已删除空分类: ${bookmarkToDelete.category}`)
+        } catch (error) {
+          console.error('删除分类失败:', error)
+          toast.error('删除分类失败: ' + (error as Error).message)
+        }
+      }
     } catch (error) {
       console.error('删除书签失败:', error)
     }
@@ -739,13 +827,13 @@ export default function Home() {
     )
   })
 
+  // 过滤掉占位书签（URL以#开头的书签）
+  const visibleBookmarks = filteredBookmarks.filter(bookmark => !bookmark.url.startsWith('#'))
+
   // 按分类分组书签
   const bookmarksByCategory = allCategories.reduce(
     (acc: Record<string, Bookmark[]>, category: string) => {
-      // 过滤掉占位书签（URL以#开头的书签）
-      acc[category] = filteredBookmarks.filter(
-        bookmark => bookmark.category === category && !bookmark.url.startsWith('#')
-      )
+      acc[category] = visibleBookmarks.filter(bookmark => bookmark.category === category)
       return acc
     },
     {} as Record<string, Bookmark[]>
