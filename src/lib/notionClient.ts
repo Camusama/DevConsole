@@ -18,6 +18,11 @@ export type Note = {
   updatedAt: string
 }
 
+// Helper function to check if a page is a full page object
+function isFullPage(page: any): boolean {
+  return page && 'properties' in page
+}
+
 // Get all notes
 export async function getNotes() {
   try {
@@ -29,17 +34,31 @@ export async function getNotes() {
       database_id: databaseId,
       sorts: [
         {
-          property: 'updatedAt',
+          timestamp: 'last_edited_time',
           direction: 'descending',
         },
       ],
     })
 
-    const notes = response.results.map((page: any) => {
+    const notes = response.results.filter(isFullPage).map((page: any) => {
+      // Handle title property
+      const titleProperty = page.properties.title
+      let titleText = 'Untitled'
+      if (titleProperty.type === 'rich_text' && titleProperty.rich_text.length > 0) {
+        titleText = titleProperty.rich_text[0]?.plain_text || 'Untitled'
+      }
+
+      // Handle content property
+      const contentProperty = page.properties.content
+      let contentText = ''
+      if (contentProperty.type === 'rich_text' && contentProperty.rich_text.length > 0) {
+        contentText = contentProperty.rich_text[0]?.plain_text || ''
+      }
+
       return {
         id: page.id,
-        title: page.properties.title.title[0]?.plain_text || 'Untitled',
-        content: page.properties.content.rich_text[0]?.plain_text || '',
+        title: titleText,
+        content: contentText,
         createdAt: page.created_time,
         updatedAt: page.last_edited_time,
       }
@@ -65,12 +84,15 @@ export async function getNote(noteId: string) {
       page_id: noteId,
     })
 
+    // Cast response to any to access properties
+    const page = response as any
+
     const note = {
-      id: response.id,
-      title: (response as any).properties.title.title[0]?.plain_text || 'Untitled',
-      content: (response as any).properties.content.rich_text[0]?.plain_text || '',
-      createdAt: response.created_time,
-      updatedAt: response.last_edited_time,
+      id: page.id,
+      title: page.properties.title.rich_text[0]?.plain_text || 'Untitled',
+      content: page.properties.content.rich_text[0]?.plain_text || '',
+      createdAt: page.created_time,
+      updatedAt: page.last_edited_time,
     }
 
     return {
@@ -99,7 +121,7 @@ export async function createNote(title: string, content: string) {
       },
       properties: {
         title: {
-          title: [
+          rich_text: [
             {
               text: {
                 content: title,
@@ -119,14 +141,17 @@ export async function createNote(title: string, content: string) {
       },
     })
 
+    // Cast response to any to access properties
+    const page = response as any
+
     return {
       isSuccess: true,
       data: {
-        id: response.id,
+        id: page.id,
         title,
         content,
-        createdAt: response.created_time,
-        updatedAt: response.last_edited_time,
+        createdAt: page.created_time,
+        updatedAt: page.last_edited_time,
       },
     }
   } catch (err) {
@@ -145,7 +170,7 @@ export async function updateNote(noteId: string, title: string, content: string)
       page_id: noteId,
       properties: {
         title: {
-          title: [
+          rich_text: [
             {
               text: {
                 content: title,
@@ -165,13 +190,16 @@ export async function updateNote(noteId: string, title: string, content: string)
       },
     })
 
+    // Cast response to any to access properties
+    const page = response as any
+
     return {
       isSuccess: true,
       data: {
-        id: response.id,
+        id: page.id,
         title,
         content,
-        updatedAt: response.last_edited_time,
+        updatedAt: page.last_edited_time,
       },
     }
   } catch (err) {

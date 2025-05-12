@@ -2,19 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getNote, updateNote, deleteNote } from '@/lib/notionClient'
 
 // Get a single note
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const id = params.id
-    
+    const { id } = await params
     if (!id) {
       return NextResponse.json({ error: 'ID是必填项' }, { status: 400 })
     }
 
     const result = await getNote(id)
-    
+
     if (result.isSuccess) {
       return NextResponse.json({ note: result.data }, { status: 200 })
     } else {
@@ -27,21 +23,18 @@ export async function GET(
 }
 
 // Update a note
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const id = params.id
+    const { id } = await params
     const data = await request.json()
     const { title, content } = data
-    
+
     if (!id || !title) {
       return NextResponse.json({ error: 'ID和标题是必填项' }, { status: 400 })
     }
 
     const result = await updateNote(id, title, content || '')
-    
+
     if (result.isSuccess) {
       return NextResponse.json({ note: result.data }, { status: 200 })
     } else {
@@ -54,19 +47,16 @@ export async function PUT(
 }
 
 // Delete a note
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const id = params.id
-    
+    const { id } = await params
+
     if (!id) {
       return NextResponse.json({ error: 'ID是必填项' }, { status: 400 })
     }
 
     const result = await deleteNote(id)
-    
+
     if (result.isSuccess) {
       return NextResponse.json({ message: '笔记删除成功' }, { status: 200 })
     } else {
