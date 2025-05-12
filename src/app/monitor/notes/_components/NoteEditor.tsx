@@ -77,13 +77,13 @@ export default function NoteEditor({
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-3xl md:max-w-4xl overflow-y-auto" side="right">
-        <SheetHeader className="px-4 pt-4">
+      <SheetContent className="w-full sm:max-w-3xl md:max-w-4xl flex flex-col" side="right">
+        <SheetHeader className="px-4 pt-4 flex-none">
           <SheetTitle>{editMode ? '编辑笔记' : '新建笔记'}</SheetTitle>
           <SheetDescription>{editMode ? '修改笔记内容' : '创建一个新的笔记'}</SheetDescription>
         </SheetHeader>
 
-        <div className="mt-6 space-y-6 px-4">
+        <div className="mt-6 space-y-6 px-4 flex-1 overflow-y-auto">
           <div className="space-y-2">
             <label htmlFor="note-title" className="text-sm font-medium text-gray-700">
               标题
@@ -99,7 +99,7 @@ export default function NoteEditor({
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">内容</label>
-            <div className="h-[calc(100vh-300px)] rounded-md overflow-y-auto overflow-x-hidden">
+            <div className="h-[calc(100vh-320px)] overflow-y-auto overflow-x-hidden">
               <SimpleMDE
                 value={currentNote.content}
                 onChange={handleContentChange}
@@ -109,14 +109,14 @@ export default function NoteEditor({
           </div>
         </div>
 
-        <SheetFooter className="px-4 py-4 border-t sticky bottom-0 bg-background">
-          <div className="flex items-center justify-end w-full gap-2">
-            <SheetClose asChild>
+        <SheetFooter className="px-4 py-4 border-t flex-none bg-background">
+          <div className="flex items-center justify-start w-full gap-2">
+            {/* <SheetClose asChild>
               <Button variant="outline" className="px-6">
                 <X className="mr-2 h-4 w-4" />
                 取消
               </Button>
-            </SheetClose>
+            </SheetClose> */}
             <Button onClick={saveNote} className="px-6">
               <Save className="mr-2 h-4 w-4" />
               {editMode ? '更新' : '保存'}
