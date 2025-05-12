@@ -46,11 +46,22 @@ export default function NoteEditor({
     placeholder: '在这里输入笔记内容...',
     status: ['lines', 'words', 'cursor'],
     toolbar: [
-      'bold', 'italic', 'heading', '|',
-      'quote', 'unordered-list', 'ordered-list', '|',
-      'link', 'image', '|',
-      'preview', 'side-by-side', 'fullscreen', '|',
-      'guide'
+      'bold',
+      'italic',
+      'heading',
+      '|',
+      'quote',
+      'unordered-list',
+      'ordered-list',
+      '|',
+      'link',
+      'image',
+      '|',
+      'preview',
+      'side-by-side',
+      'fullscreen',
+      '|',
+      'guide',
     ],
   })
 
@@ -67,43 +78,50 @@ export default function NoteEditor({
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-3xl md:max-w-4xl overflow-y-auto" side="right">
-        <SheetHeader>
+        <SheetHeader className="px-4 pt-4">
           <SheetTitle>{editMode ? '编辑笔记' : '新建笔记'}</SheetTitle>
-          <SheetDescription>
-            {editMode ? '修改笔记内容' : '创建一个新的笔记'}
-          </SheetDescription>
+          <SheetDescription>{editMode ? '修改笔记内容' : '创建一个新的笔记'}</SheetDescription>
         </SheetHeader>
-        
-        <div className="mt-6 space-y-4">
-          <div>
+
+        <div className="mt-6 space-y-6 px-4">
+          <div className="space-y-2">
+            <label htmlFor="note-title" className="text-sm font-medium text-gray-700">
+              标题
+            </label>
             <Input
+              id="note-title"
               value={currentNote.title}
               onChange={handleTitleChange}
               placeholder="笔记标题"
               className="text-lg font-medium"
             />
           </div>
-          
-          <div className="h-[calc(100vh-250px)]">
-            <SimpleMDE
-              value={currentNote.content}
-              onChange={handleContentChange}
-              options={editorOptions}
-            />
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">内容</label>
+            <div className="h-[calc(100vh-300px)] rounded-md overflow-y-auto overflow-x-hidden">
+              <SimpleMDE
+                value={currentNote.content}
+                onChange={handleContentChange}
+                options={editorOptions}
+              />
+            </div>
           </div>
         </div>
-        
-        <SheetFooter className="mt-4">
-          <SheetClose asChild>
-            <Button variant="outline">
-              <X className="mr-2 h-4 w-4" />
-              取消
+
+        <SheetFooter className="px-4 py-4 border-t sticky bottom-0 bg-background">
+          <div className="flex items-center justify-end w-full gap-2">
+            <SheetClose asChild>
+              <Button variant="outline" className="px-6">
+                <X className="mr-2 h-4 w-4" />
+                取消
+              </Button>
+            </SheetClose>
+            <Button onClick={saveNote} className="px-6">
+              <Save className="mr-2 h-4 w-4" />
+              {editMode ? '更新' : '保存'}
             </Button>
-          </SheetClose>
-          <Button onClick={saveNote}>
-            <Save className="mr-2 h-4 w-4" />
-            {editMode ? '更新' : '保存'}
-          </Button>
+          </div>
         </SheetFooter>
       </SheetContent>
     </Sheet>
