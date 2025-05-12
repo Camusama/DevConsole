@@ -66,8 +66,16 @@ export const data = {
           url: '/monitor/esxi',
         },
         {
-          title: 'Uptime kuma',
+          title: 'Uptime Kuma',
           url: '/monitor/uptime-kuma',
+        },
+        {
+          title: 'Self Host',
+          url: '/monitor/home',
+        },
+        {
+          title: 'Global Edge',
+          url: '/monitor/edge',
         },
       ],
     },
