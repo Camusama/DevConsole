@@ -71,11 +71,11 @@ export const data = {
         },
         {
           title: 'Self Host',
-          url: '/monitor/home',
+          url: '/monitor/self-host',
         },
         {
           title: 'Global Edge',
-          url: '/monitor/edge',
+          url: '/monitor/global-edge',
         },
       ],
     },

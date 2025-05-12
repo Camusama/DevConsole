@@ -2,10 +2,10 @@
 
 import { CollectionPage, CollectionConfig } from '@/components/collection-manager'
 
-// Configuration for the network monitoring collection
-const netConfig: CollectionConfig = {
-  collectionName: 'GlobalEdge',
-  pageTitle: 'GlobalEdge',
+// Configuration for the SelfHost collection
+const selfHostConfig: CollectionConfig = {
+  collectionName: 'SelfHost',
+  pageTitle: 'Self Host 服务',
   addButtonText: '添加书签',
   formTitle: '添加新书签',
   formDescription: '填写新书签的详细信息',
@@ -19,6 +19,6 @@ const netConfig: CollectionConfig = {
   defaultCategory: '默认',
 }
 
-export default function NetMonitorPage() {
-  return <CollectionPage config={netConfig} />
+export default function SelfHostPage() {
+  return <CollectionPage config={selfHostConfig} />
 }

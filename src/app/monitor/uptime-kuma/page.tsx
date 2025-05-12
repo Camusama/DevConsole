@@ -423,7 +423,7 @@ const defaultBookMark = {
 
 // API fetcher 函数
 const fetchBookmarksApi = async () => {
-  const response = await fetch('/api/bookmarks')
+  const response = await fetch('/api/bookmarks?collection=bookmarks')
   if (!response.ok) {
     throw new Error('获取书签失败')
   }
@@ -465,12 +465,17 @@ const saveBookmarkApi = async (bookmark: Bookmark | Bookmark[]) => {
   const isUpdate = !Array.isArray(bookmark) && bookmark._id
   const method = isUpdate ? 'PUT' : 'POST'
 
+  // 添加集合名称到请求
+  const requestData = Array.isArray(bookmark)
+    ? bookmark.map(b => ({ ...b, collection: 'bookmarks' }))
+    : { ...bookmark, collection: 'bookmarks' }
+
   const response = await fetch('/api/bookmarks', {
     method,
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(bookmark),
+    body: JSON.stringify(requestData),
   })
 
   if (!response.ok) {
@@ -483,7 +488,7 @@ const saveBookmarkApi = async (bookmark: Bookmark | Bookmark[]) => {
 
 // 删除书签的 API 函数
 const deleteBookmarkApi = async (id: string) => {
-  const response = await fetch(`/api/bookmarks?id=${id}`, {
+  const response = await fetch(`/api/bookmarks?id=${id}&collection=bookmarks`, {
     method: 'DELETE',
   })
 
@@ -500,7 +505,7 @@ export default function Home() {
     data: bookmarks = [],
     isLoading,
     mutate: refreshBookmarks,
-  } = useSWR<Bookmark[]>('/api/bookmarks', fetchBookmarksApi, {
+  } = useSWR<Bookmark[]>('/api/bookmarks?collection=bookmarks', fetchBookmarksApi, {
     revalidateOnFocus: false,
     dedupingInterval: 10000, // 10秒内不重复请求
   })

@@ -20,11 +20,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import useSWR from 'swr'
 
@@ -56,7 +52,7 @@ export default function CollectionPage({ config }: { config: CollectionConfig })
     isLoading,
     mutate: refreshItems,
   } = useSWR<CollectionItem[]>(
-    `/api/bookmarks?collection=${config.collectionName}`,
+    `collection-items-${config.collectionName}`,
     () => fetchCollectionItems(config.collectionName),
     {
       revalidateOnFocus: false,
@@ -66,7 +62,7 @@ export default function CollectionPage({ config }: { config: CollectionConfig })
 
   // Use SWR to fetch category order
   const { data: savedCategoryOrder = [], mutate: refreshCategoryOrder } = useSWR<string[]>(
-    `/api/category-order?collection=${config.collectionName}`,
+    `category-order-${config.collectionName}`,
     () => fetchCategoryOrder(config.collectionName),
     {
       revalidateOnFocus: false,
@@ -82,7 +78,9 @@ export default function CollectionPage({ config }: { config: CollectionConfig })
   // Edit state
   const [editMode, setEditMode] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [currentItem, setCurrentItem] = useState<CollectionItem>(getDefaultItem(config.defaultCategory))
+  const [currentItem, setCurrentItem] = useState<CollectionItem>(
+    getDefaultItem(config.defaultCategory)
+  )
 
   // Extract categories from items data
   const allCategories = useMemo(
@@ -219,9 +217,7 @@ export default function CollectionPage({ config }: { config: CollectionConfig })
       // If in edit mode or URL doesn't contain newlines, process as single item
       if (editMode || !currentItem.url.includes('\n')) {
         // If just created a new category, use the new category name
-        const itemToSave = isNewCategory
-          ? { ...currentItem, category: newCategory }
-          : currentItem
+        const itemToSave = isNewCategory ? { ...currentItem, category: newCategory } : currentItem
 
         toast.promise(saveCollectionItem(itemToSave, config.collectionName), {
           loading: '保存中...',

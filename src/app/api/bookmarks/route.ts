@@ -22,14 +22,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
-    const collectionName = data.collection || 'bookmarks'
 
-    // Remove collection field from data if it exists
-    if (Array.isArray(data)) {
+    // Get collection name before removing it from the data
+    let collectionName = 'bookmarks'
+
+    if (Array.isArray(data) && data.length > 0 && data[0].collection) {
+      collectionName = data[0].collection
+      // Remove collection field from data items
       data.forEach(item => {
         if (item.collection) delete item.collection
       })
-    } else if (data.collection) {
+    } else if (!Array.isArray(data) && data.collection) {
+      collectionName = data.collection
       delete data.collection
     }
 
@@ -128,7 +132,7 @@ export async function PUT(request: NextRequest) {
 
     await db
       .collection(collectionName)
-      .updateOne({ _id: new ObjectId(_id) }, { $set: updatedBookmark })
+      .updateOne({ _id: new ObjectId(_id.toString()) }, { $set: updatedBookmark })
 
     return NextResponse.json({ bookmark: { ...updatedBookmark, _id } }, { status: 200 })
   } catch (error) {
@@ -150,7 +154,7 @@ export async function DELETE(request: NextRequest) {
     const client = await clientPromise
     const db = client.db('dev-console')
 
-    await db.collection(collectionName).deleteOne({ _id: new ObjectId(id) })
+    await db.collection(collectionName).deleteOne({ _id: new ObjectId(id.toString()) })
 
     return NextResponse.json({ message: '书签删除成功' }, { status: 200 })
   } catch (error) {

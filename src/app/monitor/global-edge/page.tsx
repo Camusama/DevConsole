@@ -2,10 +2,10 @@
 
 import { CollectionPage, CollectionConfig } from '@/components/collection-manager'
 
-// Configuration for the bookmarks collection
-const bookmarksConfig: CollectionConfig = {
-  collectionName: 'SelfHost',
-  pageTitle: 'SelfHost',
+// Configuration for the GlobalEdge collection
+const edgeConfig: CollectionConfig = {
+  collectionName: 'GlobalEdge',
+  pageTitle: 'Global Edge 服务',
   addButtonText: '添加书签',
   formTitle: '添加新书签',
   formDescription: '填写新书签的详细信息',
@@ -19,6 +19,6 @@ const bookmarksConfig: CollectionConfig = {
   defaultCategory: '默认',
 }
 
-export default function BookmarksPage() {
-  return <CollectionPage config={bookmarksConfig} />
+export default function EdgePage() {
+  return <CollectionPage config={edgeConfig} />
 }
