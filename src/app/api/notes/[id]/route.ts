@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getNote, updateNote, deleteNote } from '@/lib/notionClient'
 
 // Get a single note
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }) {
   try {
     const { id } = await params
     if (!id) {
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Update a note
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }) {
   try {
     const { id } = await params
     const data = await request.json()
@@ -47,7 +47,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Delete a note
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }) {
   try {
     const { id } = await params
 

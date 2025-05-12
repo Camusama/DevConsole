@@ -31,7 +31,7 @@ export default function DeleteConfirmDialog({
         <DialogHeader>
           <DialogTitle>确认删除</DialogTitle>
           <DialogDescription>
-            您确定要删除笔记 "{title}" 吗？此操作无法撤销。
+            您确定要删除笔记 &quot;{title}&quot; 吗？此操作无法撤销。
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

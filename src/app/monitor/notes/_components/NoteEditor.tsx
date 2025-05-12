@@ -43,7 +43,7 @@ export default function NoteEditor({
   const [isSaving, setIsSaving] = useState(false)
 
   // SimpleMDE options
-  const [editorOptions] = useState({
+  const [editorOptions] = useState<any>({
     autofocus: true,
     spellChecker: false,
     placeholder: '在这里输入笔记内容...',
