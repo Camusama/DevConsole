@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, RefreshCw, RotateCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -37,10 +37,10 @@ export default function NotesPage() {
   const {
     data: notes = [],
     isLoading,
+    isValidating,
     mutate: refreshNotes,
   } = useSWR<Note[]>('/api/notes', fetchNotes, {
     revalidateOnFocus: false,
-    dedupingInterval: 10000, // 10 seconds
   })
 
   // Filter notes based on search term
@@ -127,7 +127,12 @@ export default function NotesPage() {
   return (
     <div className="container mx-auto p-4 max-w-7xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <h1 className="text-2xl font-bold">笔记本</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold">笔记本</h1>
+          {(isLoading || isValidating) && (
+            <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+          )}
+        </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
