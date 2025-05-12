@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, X } from 'lucide-react'
+import { Save, X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -39,6 +39,9 @@ export default function NoteEditor({
   saveNote,
   editMode,
 }: NoteEditorProps) {
+  // Add loading state
+  const [isSaving, setIsSaving] = useState(false)
+
   // SimpleMDE options
   const [editorOptions] = useState({
     autofocus: true,
@@ -74,6 +77,34 @@ export default function NoteEditor({
   const handleContentChange = (value: string) => {
     setCurrentNote({ ...currentNote, content: value })
   }
+
+  // Modify save handler to include loading state
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      await saveNote()
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Update keyboard shortcut handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        handleSave()
+      }
+    }
+
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown)
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen, handleSave])
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -111,15 +142,18 @@ export default function NoteEditor({
 
         <SheetFooter className="px-4 py-4 border-t flex-none bg-background">
           <div className="flex items-center justify-start w-full gap-2">
-            {/* <SheetClose asChild>
-              <Button variant="outline" className="px-6">
-                <X className="mr-2 h-4 w-4" />
-                取消
-              </Button>
-            </SheetClose> */}
-            <Button onClick={saveNote} className="px-6">
-              <Save className="mr-2 h-4 w-4" />
-              {editMode ? '更新' : '保存'}
+            <Button onClick={handleSave} className="px-6" disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  保存中...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  {editMode ? '更新' : '保存'} (⌘+S/Ctrl+S)
+                </>
+              )}
             </Button>
           </div>
         </SheetFooter>
