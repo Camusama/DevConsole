@@ -77,6 +77,10 @@ export const data = {
           title: 'Global Edge',
           url: '/monitor/global-edge',
         },
+        {
+          title: 'Notes',
+          url: '/monitor/notes',
+        },
       ],
     },
     {
