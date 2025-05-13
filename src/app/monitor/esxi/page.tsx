@@ -3,10 +3,12 @@ import { getEsxiList } from '@/lib/esxiClient'
 import { DataTable } from './_components/data-table'
 import { columns } from './_components/columns'
 import useSWR from 'swr'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, Search } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { ESXI_CACHE_KEY as CACHE_KEY } from '@/lib/constants'
+import { Vm } from './_components/columns'
 
 // 从localStorage获取缓存数据
 const getLocalCache = () => {
@@ -27,8 +29,10 @@ const getLocalCache = () => {
 export default function Home() {
   // 缓存时间状态
   const [cacheTime, setCacheTime] = useState<string>('')
+  // 搜索状态
+  const [searchTerm, setSearchTerm] = useState<string>('')
 
-  const { isLoading, data, error, isValidating, mutate } = useSWR(CACHE_KEY, getEsxiList, {
+  const { isLoading, data, isValidating, mutate } = useSWR(CACHE_KEY, getEsxiList, {
     revalidateOnFocus: false,
     onSuccess: data => {
       // 成功获取数据后，将数据和时间戳存入localStorage
@@ -62,12 +66,54 @@ export default function Home() {
     mutate()
   }
 
+  // 过滤虚拟机数据
+  const filteredData = useMemo(() => {
+    if (!data?.data || !Array.isArray(data.data)) return []
+
+    if (!searchTerm.trim()) return data.data
+
+    const term = searchTerm.toLowerCase()
+    return data.data.filter((vm: Vm) => {
+      return (
+        vm.name.toLowerCase().includes(term) ||
+        vm.os.toLowerCase().includes(term) ||
+        vm.host.toLowerCase().includes(term)
+      )
+    })
+  }, [data, searchTerm])
+
+  // 加载状态
   if (isLoading && !getLocalCache()?.data) {
-    return <div>ESXi Loading...</div>
+    return (
+      <div className="container mx-auto p-4 max-w-7xl">
+        <h1 className="text-2xl font-bold mb-4">ESXi 虚拟机管理</h1>
+
+        <div className="w-full max-w-md h-10 bg-gray-200 animate-pulse rounded-md mb-4"></div>
+
+        <div className="h-16 bg-gray-200 animate-pulse rounded-md mb-4"></div>
+
+        <div className="rounded-md border">
+          <div className="h-[400px] w-full bg-gray-100 animate-pulse"></div>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="container mx-auto py-10">
+    <div className="container mx-auto p-4 max-w-7xl">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold">ESXi 虚拟机管理</h1>
+        <div className="relative w-full max-w-md">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="搜索虚拟机..."
+            className="pl-9 w-full"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
       <div className="flex justify-between items-center mb-4 p-3 bg-gray-50 rounded-md">
         <div className="flex flex-col">
           <div className="text-sm text-gray-500">
@@ -88,7 +134,17 @@ export default function Home() {
           刷新
         </Button>
       </div>
-      <DataTable columns={columns} data={data?.data || []} />
+
+      {filteredData.length > 0 ? (
+        <DataTable columns={columns} data={filteredData} />
+      ) : (
+        <div className="text-center py-12 border rounded-md">
+          <h3 className="text-lg font-medium">未找到虚拟机</h3>
+          <p className="text-muted-foreground mt-1">
+            {searchTerm ? '没有匹配的搜索结果' : '暂无虚拟机数据'}
+          </p>
+        </div>
+      )}
     </div>
   )
 }
