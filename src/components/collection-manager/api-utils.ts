@@ -12,7 +12,7 @@ export const fetchCollectionItems = async (collectionName: string) => {
 
 // Fetch category order for a collection
 export const fetchCategoryOrder = async (collectionName: string) => {
-  const response = await fetch(`/api/category-order?collection=${collectionName}`)
+  const response = await fetch(`/api/bookmarks/category-order?collection=${collectionName}`)
   if (!response.ok) {
     throw new Error(`获取${collectionName}分类顺序失败`)
   }
@@ -22,7 +22,7 @@ export const fetchCategoryOrder = async (collectionName: string) => {
 
 // Save category order for a collection
 export const saveCategoryOrder = async (order: string[], collectionName: string) => {
-  const response = await fetch('/api/category-order', {
+  const response = await fetch('/api/bookmarks/category-order', {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',

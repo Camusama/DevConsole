@@ -433,7 +433,7 @@ const fetchBookmarksApi = async () => {
 
 // 获取分类顺序的 API 函数
 const fetchCategoryOrderApi = async () => {
-  const response = await fetch('/api/category-order?collection=bookmarks')
+  const response = await fetch('/api/bookmarks/category-order?collection=bookmarks')
   if (!response.ok) {
     throw new Error('获取分类顺序失败')
   }
@@ -443,7 +443,7 @@ const fetchCategoryOrderApi = async () => {
 
 // 保存分类顺序的 API 函数
 const saveCategoryOrderApi = async (order: string[]) => {
-  const response = await fetch('/api/category-order', {
+  const response = await fetch('/api/bookmarks/category-order', {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -512,7 +512,7 @@ export default function Home() {
 
   // 使用 SWR 获取分类顺序
   const { data: savedCategoryOrder = [], mutate: refreshCategoryOrder } = useSWR<string[]>(
-    '/api/category-order?collection=bookmarks',
+    '/api/bookmarks/category-order?collection=bookmarks',
     fetchCategoryOrderApi,
     {
       revalidateOnFocus: false,
