@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, Save, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -22,7 +22,7 @@ import {
 } from '@dnd-kit/sortable'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
-import useSWR from 'swr'
+import useSWR, { mutate } from 'swr'
 
 import DraggableCategory from './DraggableCategory'
 import CollectionForm from './CollectionForm'
@@ -35,6 +35,13 @@ import {
   saveCollectionItem,
   deleteCollectionItem,
 } from './api-utils'
+import {
+  getLatestBackup,
+  createBackup,
+  restoreLatestBackupToMongoDB,
+  restoreBackupToMongoDB,
+} from '@/lib/pgBackup'
+import BackupDialog from './BackupDialog'
 
 // Default item template
 const getDefaultItem = (defaultCategory: string): CollectionItem => ({
@@ -69,7 +76,36 @@ export default function CollectionPage({ config }: { config: CollectionConfig })
     }
   )
 
+  // Use SWR to fetch latest backup info
+  const {
+    data: latestBackup,
+    isLoading: isLoadingBackup,
+    mutate: refreshBackupInfo,
+  } = useSWR(
+    `latest-backup-${config.collectionName}`,
+    () => getLatestBackup(config.collectionName),
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 30000, // 30 seconds
+      onError: error => {
+        console.error('Failed to fetch backup info:', error)
+      },
+    }
+  )
+
+  // Compute last backup date from SWR data
+  const lastBackupDate = useMemo(() => {
+    if (latestBackup?.createdAt) {
+      const date = new Date(latestBackup.createdAt)
+      return date.toLocaleString('zh-CN')
+    }
+    return null
+  }, [latestBackup])
+
   // State management
+  const [isBackingUp, setIsBackingUp] = useState(false)
+  const [isRestoring, setIsRestoring] = useState(false)
+  const [backupDialogOpen, setBackupDialogOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [newCategory, setNewCategory] = useState('')
   const [showCategoryInput, setShowCategoryInput] = useState(false)
@@ -81,6 +117,60 @@ export default function CollectionPage({ config }: { config: CollectionConfig })
   const [currentItem, setCurrentItem] = useState<CollectionItem>(
     getDefaultItem(config.defaultCategory)
   )
+
+  // 创建备份
+  const handleBackup = async () => {
+    if (items.length === 0) {
+      toast.error('没有数据可备份')
+      return
+    }
+
+    setIsBackingUp(true)
+    try {
+      await createBackup(config.collectionName, items, categoryOrder)
+      refreshBackupInfo() // Refresh backup info using SWR
+      toast.success('数据备份成功')
+    } catch (error) {
+      console.error('备份失败:', error)
+      toast.error(error instanceof Error ? error.message : '备份失败')
+    } finally {
+      setIsBackingUp(false)
+    }
+  }
+
+  // 从特定备份恢复
+  const handleRestoreFromBackup = async (backupId: number) => {
+    setIsRestoring(true)
+    try {
+      const result = await restoreBackupToMongoDB(backupId)
+
+      // 刷新数据
+      refreshItems()
+      refreshCategoryOrder()
+      refreshBackupInfo()
+
+      toast.success(
+        `已成功从 ${new Date(result.backupDate).toLocaleString('zh-CN')} 的备份恢复了 ${
+          result.itemCount
+        } 个项目`
+      )
+    } catch (error) {
+      console.error('恢复失败:', error)
+      toast.error(error instanceof Error ? error.message : '恢复失败')
+    } finally {
+      setIsRestoring(false)
+    }
+  }
+
+  // 从最新备份恢复 (打开备份对话框)
+  const handleRestore = () => {
+    if (!lastBackupDate) {
+      toast.error('没有可用的备份')
+      return
+    }
+
+    setBackupDialogOpen(true)
+  }
 
   // Extract categories from items data
   const allCategories = useMemo(
@@ -137,23 +227,22 @@ export default function CollectionPage({ config }: { config: CollectionConfig })
 
       if (oldIndex !== -1 && newIndex !== -1) {
         const newOrder = arrayMove([...categoryOrder], oldIndex, newIndex)
-        refreshCategoryOrder(newOrder)
+
+        // Optimistic update
+        setCategoryOrder(newOrder)
+        refreshCategoryOrder(newOrder, false)
 
         // Save new order to server
         saveCategoryOrder(newOrder, config.collectionName)
           .then(() => {
-            // Update SWR cache
-            refreshCategoryOrder()
-            // Show success message
             toast.success('分类顺序已更新')
           })
           .catch(error => {
-            // Show error message
+            // Revert on error
+            setCategoryOrder(categoryOrder)
+            refreshCategoryOrder(categoryOrder, false)
             toast.error('保存分类顺序失败: ' + error.message)
           })
-
-        // Update local state
-        setCategoryOrder(newOrder)
       }
     }
   }
@@ -267,7 +356,7 @@ export default function CollectionPage({ config }: { config: CollectionConfig })
     }
   }
 
-  // Delete item
+  // Delete item with optimistic updates
   const deleteItem = async (id: string) => {
     try {
       // Find the item to delete
@@ -283,43 +372,54 @@ export default function CollectionPage({ config }: { config: CollectionConfig })
       )
       const isLastInCategory = categoryItems.length === 1
 
-      // Delete the item
-      await deleteCollectionItem(id, config.collectionName)
+      // Optimistic update - remove item from local state
+      const updatedItems = items.filter(item => item._id !== id)
+      refreshItems(updatedItems, false)
 
-      // Show success message and refresh data
-      toast.success('删除成功')
-      refreshItems()
+      try {
+        // Delete the item
+        await deleteCollectionItem(id, config.collectionName)
 
-      // If this is the last visible item in the category, remove the category from the order
-      if (isLastInCategory && itemToDelete.category !== config.defaultCategory) {
-        const newOrder = categoryOrder.filter(c => c !== itemToDelete.category)
+        // Show success message
+        toast.success('删除成功')
 
-        // Find and delete the category's placeholder item
-        const placeholderItem = items.find(
-          b => b.category === itemToDelete.category && b.url.startsWith('#')
-        )
+        // If this is the last visible item in the category, remove the category from the order
+        if (isLastInCategory && itemToDelete.category !== config.defaultCategory) {
+          const newOrder = categoryOrder.filter(c => c !== itemToDelete.category)
 
-        if (placeholderItem && placeholderItem._id) {
+          // Find and delete the category's placeholder item
+          const placeholderItem = items.find(
+            b => b.category === itemToDelete.category && b.url.startsWith('#')
+          )
+
+          if (placeholderItem && placeholderItem._id) {
+            try {
+              await deleteCollectionItem(placeholderItem._id, config.collectionName)
+            } catch (error) {
+              console.error('删除占位项目失败:', error)
+            }
+          }
+
+          // Save new category order
           try {
-            await deleteCollectionItem(placeholderItem._id, config.collectionName)
+            await saveCategoryOrder(newOrder, config.collectionName)
+            setCategoryOrder(newOrder)
+            refreshCategoryOrder(newOrder, false)
+            toast.success(`已删除空分类: ${itemToDelete.category}`)
           } catch (error) {
-            console.error('删除占位项目失败:', error)
+            console.error('删除分类失败:', error)
+            toast.error('删除分类失败: ' + (error as Error).message)
           }
         }
-
-        // Save new category order
-        try {
-          await saveCategoryOrder(newOrder, config.collectionName)
-          setCategoryOrder(newOrder)
-          refreshCategoryOrder()
-          toast.success(`已删除空分类: ${itemToDelete.category}`)
-        } catch (error) {
-          console.error('删除分类失败:', error)
-          toast.error('删除分类失败: ' + (error as Error).message)
-        }
+      } catch (error) {
+        // Revert optimistic update on error
+        refreshItems()
+        console.error('删除失败:', error)
+        toast.error('删除失败: ' + (error as Error).message)
       }
     } catch (error) {
       console.error('删除失败:', error)
+      toast.error('删除失败: ' + (error as Error).message)
     }
   }
 
@@ -374,25 +474,28 @@ export default function CollectionPage({ config }: { config: CollectionConfig })
   }
 
   // Filter items
-  const filteredItems = items.filter(item => {
-    return (
-      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.url.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  })
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      return (
+        item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.url.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    })
+  }, [items, searchTerm])
 
   // Filter out placeholder items (URL starting with #)
-  const visibleItems = filteredItems.filter(item => !item.url.startsWith('#'))
+  const visibleItems = useMemo(() => {
+    return filteredItems.filter(item => !item.url.startsWith('#'))
+  }, [filteredItems])
 
   // Group items by category
-  const itemsByCategory = allCategories.reduce(
-    (acc: Record<string, CollectionItem[]>, category: string) => {
+  const itemsByCategory = useMemo(() => {
+    return allCategories.reduce((acc: Record<string, CollectionItem[]>, category: string) => {
       acc[category] = visibleItems.filter(item => item.category === category)
       return acc
-    },
-    {} as Record<string, CollectionItem[]>
-  )
+    }, {} as Record<string, CollectionItem[]>)
+  }, [allCategories, visibleItems])
 
   // Control category collapse state
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({})
@@ -407,7 +510,7 @@ export default function CollectionPage({ config }: { config: CollectionConfig })
 
   return (
     <div className="container mx-auto p-4 max-w-7xl">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
         <h1 className="text-2xl font-bold">{config.pageTitle}</h1>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
@@ -444,6 +547,68 @@ export default function CollectionPage({ config }: { config: CollectionConfig })
         </div>
       </div>
 
+      {/* 备份信息和备份按钮 */}
+      <div className="flex justify-between items-center mb-6 p-3 bg-gray-50 rounded-md">
+        <div className="text-sm text-gray-500">
+          {isLoadingBackup ? (
+            <div className="flex items-center gap-2">
+              <RefreshCw className="h-3 w-3 animate-spin" />
+              <span>加载备份信息...</span>
+            </div>
+          ) : lastBackupDate ? (
+            `上次备份时间: ${lastBackupDate}`
+          ) : (
+            '尚未创建备份'
+          )}
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleRestore}
+            variant="outline"
+            size="sm"
+            disabled={isRestoring || isBackingUp || !lastBackupDate || isLoadingBackup}
+            className="flex items-center gap-1"
+          >
+            {isRestoring ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                恢复中...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" />
+                从备份恢复
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={handleBackup}
+            variant="outline"
+            size="sm"
+            disabled={isBackingUp || isRestoring || items.length === 0 || isLoadingBackup}
+            className="flex items-center gap-1"
+          >
+            {isBackingUp ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                备份中...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                备份到 PostgreSQL
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+      <BackupDialog
+        open={backupDialogOpen}
+        onOpenChange={setBackupDialogOpen}
+        collectionName={config.collectionName}
+        onRestore={handleRestoreFromBackup}
+        onRefreshBackups={refreshBackupInfo}
+      />
       {isLoading ? (
         <div className="grid grid-cols-1 gap-6">
           {/* Skeleton screen - mimics category and card layout */}
@@ -467,10 +632,7 @@ export default function CollectionPage({ config }: { config: CollectionConfig })
                       <Skeleton className="h-4 w-full mb-2" />
                       <Skeleton className="h-4 w-3/4 mb-2" />
                       <div className="mt-auto pt-2 border-t flex justify-end items-center">
-                        <div className="flex gap-1">
-                          <Skeleton className="h-7 w-7 rounded" />
-                          <Skeleton className="h-7 w-7 rounded" />
-                        </div>
+                        <Skeleton className="h-8 w-16" />
                       </div>
                     </div>
                   ))}
