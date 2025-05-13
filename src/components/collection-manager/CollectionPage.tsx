@@ -248,11 +248,16 @@ export default function CollectionPage({ config }: { config: CollectionConfig })
   }
 
   const onSheetOpenChange = (open: boolean) => {
-    if (!open) {
-      setEditMode(false)
-      setCurrentItem(getDefaultItem(config.defaultCategory))
-    }
     setSheetOpen(open)
+
+    // 只有在对话框完全关闭后才重置状态
+    if (!open) {
+      // 使用setTimeout延迟重置状态，等待关闭动画完成
+      setTimeout(() => {
+        setEditMode(false)
+        setCurrentItem(getDefaultItem(config.defaultCategory))
+      }, 300) // 300ms与Sheet组件的关闭动画持续时间一致
+    }
   }
 
   // Add or update item

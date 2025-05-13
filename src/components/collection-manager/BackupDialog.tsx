@@ -109,8 +109,46 @@ export default function BackupDialog({
     }
   }
 
+  // 保存当前状态，在对话框关闭动画期间保持内容不变
+  const [closingState, setClosingState] = useState({
+    isClosing: false,
+    backups: [] as BackupRecord[],
+    isLoading: false,
+    error: null as Error | null,
+  })
+
+  // 处理对话框状态变化
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && !closingState.isClosing) {
+      // 对话框开始关闭，保存当前状态
+      setClosingState({
+        isClosing: true,
+        backups: backups,
+        isLoading: isLoading,
+        error: error,
+      })
+
+      // 延迟重置关闭状态，等待动画完成
+      setTimeout(() => {
+        setClosingState({
+          isClosing: false,
+          backups: [],
+          isLoading: false,
+          error: null,
+        })
+      }, 200) // 200ms与Dialog组件的关闭动画持续时间一致
+    }
+
+    onOpenChange(newOpen)
+  }
+
+  // 使用当前状态或关闭状态
+  const displayBackups = closingState.isClosing ? closingState.backups : backups
+  const displayIsLoading = closingState.isClosing ? closingState.isLoading : isLoading
+  const displayError = closingState.isClosing ? closingState.error : error
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>备份历史</DialogTitle>
@@ -118,16 +156,16 @@ export default function BackupDialog({
         </DialogHeader>
 
         <div className="mt-4">
-          {isLoading ? (
+          {displayIsLoading ? (
             <div className="flex justify-center py-8">
               <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : error ? (
+          ) : displayError ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <AlertCircle className="h-10 w-10 text-destructive mb-2" />
               <p className="text-muted-foreground">加载备份列表失败</p>
             </div>
-          ) : backups.length === 0 ? (
+          ) : displayBackups.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <AlertCircle className="h-10 w-10 text-muted-foreground mb-2" />
               <p className="text-muted-foreground">没有找到备份记录</p>
@@ -142,7 +180,7 @@ export default function BackupDialog({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {backups.map(backup => (
+                {displayBackups.map(backup => (
                   <TableRow key={backup.id}>
                     <TableCell>{new Date(backup.createdAt).toLocaleString('zh-CN')}</TableCell>
                     <TableCell>{Array.isArray(backup.items) ? backup.items.length : 0}</TableCell>
@@ -193,7 +231,7 @@ export default function BackupDialog({
           <Button variant="outline" onClick={() => refreshBackups()}>
             刷新列表
           </Button>
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
+          <Button variant="secondary" onClick={() => handleOpenChange(false)}>
             关闭
           </Button>
         </div>
