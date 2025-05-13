@@ -1,7 +1,7 @@
 'use client'
 
-import { KeyboardEvent } from 'react'
-import { Save, X, FolderPlus, Link2 } from 'lucide-react'
+import { KeyboardEvent, useState, useEffect, useCallback } from 'react'
+import { Save, X, FolderPlus, Link2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -47,12 +47,28 @@ const CollectionForm = ({
   config,
 }: CollectionFormProps) => {
   const idSuffix = isMobile ? '-mobile' : ''
+  // 添加保存中状态
+  const [isSaving, setIsSaving] = useState(false)
+
+  // 处理保存操作 - 使用 useCallback 记忆函数，避免不必要的重新创建
+  const handleSave = useCallback(() => {
+    setIsSaving(true)
+
+    // 使用 Promise.resolve 确保 saveItem 返回的是 Promise
+    Promise.resolve(saveItem())
+      .catch(error => {
+        console.error('保存失败:', error)
+      })
+      .finally(() => {
+        setIsSaving(false)
+      })
+  }, [saveItem]) // 依赖于 saveItem 函数
 
   // Handle enter key submission
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      saveItem()
+      handleSave()
     }
   }
 
@@ -63,6 +79,24 @@ const CollectionForm = ({
       void addCategory() // Use void operator to handle Promise
     }
   }
+
+  // 添加 Ctrl+S 快捷键支持
+  useEffect(() => {
+    const handleKeyboardSave = (e: globalThis.KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        handleSave()
+      }
+    }
+
+    // 添加全局键盘事件监听
+    window.addEventListener('keydown', handleKeyboardSave)
+
+    // 组件卸载时移除事件监听
+    return () => {
+      window.removeEventListener('keydown', handleKeyboardSave)
+    }
+  }, [handleSave]) // 添加 handleSave 作为依赖项，确保使用最新的函数引用
 
   // Handle batch URL input hint
   const urlPlaceholder = editMode ? '输入URL' : '输入URL，每行一个，可批量添加多个'
@@ -168,7 +202,19 @@ const CollectionForm = ({
         <SheetClose asChild>
           <Button variant="outline">取消</Button>
         </SheetClose>
-        <Button onClick={saveItem}>{editMode ? '更新' : '保存'}</Button>
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              保存中...
+            </>
+          ) : (
+            <>
+              <Save className="mr-2 h-4 w-4" />
+              {editMode ? '更新' : '保存'} (⌘+S/Ctrl+S)
+            </>
+          )}
+        </Button>
       </SheetFooter>
     </>
   )
