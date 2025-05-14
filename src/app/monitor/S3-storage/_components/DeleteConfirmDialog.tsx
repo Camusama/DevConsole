@@ -18,6 +18,8 @@ interface DeleteConfirmDialogProps {
   title: string
   onConfirm: () => Promise<void>
   isDeleting?: boolean
+  isFolder?: boolean
+  isBulkDelete?: boolean
 }
 
 export default function DeleteConfirmDialog({
@@ -26,6 +28,8 @@ export default function DeleteConfirmDialog({
   title,
   onConfirm,
   isDeleting = false,
+  isFolder = false,
+  isBulkDelete = false,
 }: DeleteConfirmDialogProps) {
   const [isConfirming, setIsConfirming] = useState(false)
 
@@ -44,7 +48,15 @@ export default function DeleteConfirmDialog({
         <DialogHeader>
           <DialogTitle>确认删除</DialogTitle>
           <DialogDescription>
-            您确定要删除 &ldquo;{title}&rdquo; 吗？此操作无法撤销。
+            {isBulkDelete ? (
+              <>您确定要删除选中的 {title} 吗？此操作无法撤销。</>
+            ) : (
+              <>
+                您确定要删除{isFolder ? '文件夹' : '文件'} &ldquo;{title}&rdquo; 吗？
+                {isFolder && '这将删除该文件夹及其所有内容。'}
+                此操作无法撤销。
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import useSWR from 'swr'
 import { S3Object } from '@/lib/s3Client'
-import { fetchS3Objects, deleteS3Object } from './_utils/api'
+import { fetchS3Objects, deleteS3Object, deleteS3Objects } from './_utils/api'
 import FileBrowser from './_components/FileBrowser'
 import FileUpload from './_components/FileUpload'
 import FilePreview from './_components/FilePreview'
@@ -68,6 +68,18 @@ export default function S3StoragePage() {
     } catch (error) {
       console.error('Error deleting file:', error)
       toast.error('删除文件失败')
+    }
+  }
+
+  // Handle bulk delete
+  const handleBulkDelete = async (keys: string[]) => {
+    try {
+      await deleteS3Objects(keys)
+      toast.success(`成功删除 ${keys.length} 个文件`)
+      refreshObjects()
+    } catch (error) {
+      console.error('Error bulk deleting files:', error)
+      toast.error('批量删除文件失败')
     }
   }
 
@@ -139,6 +151,7 @@ export default function S3StoragePage() {
         onRefresh={refreshObjects}
         onPreview={handlePreview}
         onDelete={handleDelete}
+        onBulkDelete={handleBulkDelete}
         isLoading={isLoading}
         objects={objects}
         folders={folders}

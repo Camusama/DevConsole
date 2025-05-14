@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   Folder,
   File,
@@ -11,13 +11,14 @@ import {
   Archive,
   FileCode,
   FileX,
-  ChevronRight,
   RefreshCw,
   Trash2,
   Download,
   Eye,
-  MoreHorizontal,
   FolderUp,
+  CheckSquare,
+  Square,
+  Trash,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,12 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+
 import DeleteConfirmDialog from './DeleteConfirmDialog'
 
 interface FileBrowserProps {
@@ -47,6 +43,7 @@ interface FileBrowserProps {
   onRefresh: () => void
   onPreview: (object: S3Object) => void
   onDelete: (key: string) => void
+  onBulkDelete: (keys: string[]) => Promise<void>
   isLoading: boolean
   objects: S3Object[]
   folders: S3Folder[]
@@ -58,6 +55,7 @@ export default function FileBrowser({
   onRefresh,
   onPreview,
   onDelete,
+  onBulkDelete,
   isLoading,
   objects,
   folders,
@@ -66,6 +64,12 @@ export default function FileBrowser({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [objectToDelete, setObjectToDelete] = useState<string>('')
   const [objectNameToDelete, setObjectNameToDelete] = useState<string>('')
+  const [isFolder, setIsFolder] = useState<boolean>(false)
+
+  // 多选相关状态
+  const [selectedItems, setSelectedItems] = useState<string[]>([])
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
+  const [selectMode, setSelectMode] = useState(false)
 
   // Filter objects based on search term
   const filteredObjects = objects.filter(obj =>
@@ -136,9 +140,10 @@ export default function FileBrowser({
   }
 
   // Handle delete confirmation
-  const handleDeleteClick = (key: string, name: string) => {
+  const handleDeleteClick = (key: string, name: string, folder: boolean = false) => {
     setObjectToDelete(key)
     setObjectNameToDelete(name)
+    setIsFolder(folder)
     setDeleteDialogOpen(true)
   }
 
@@ -147,11 +152,31 @@ export default function FileBrowser({
     if (!objectToDelete) return
 
     try {
-      onDelete(objectToDelete)
+      if (isFolder) {
+        // 使用专门的文件夹删除 API
+        const response = await fetch('/api/s3/delete-folder', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ prefix: objectToDelete }),
+        })
+
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || '删除文件夹失败')
+        }
+
+        toast.success('文件夹删除成功')
+        onRefresh() // 刷新文件列表
+      } else {
+        // 使用常规文件删除
+        onDelete(objectToDelete)
+      }
       setDeleteDialogOpen(false)
     } catch (error) {
       console.error('Error deleting object:', error)
-      toast.error('删除对象失败')
+      toast.error(error instanceof Error ? error.message : '删除对象失败')
     }
   }
 
@@ -170,6 +195,50 @@ export default function FileBrowser({
     } catch (error) {
       console.error('Error downloading object:', error)
       toast.error('下载对象失败')
+    }
+  }
+
+  // 切换选择模式
+  const toggleSelectMode = () => {
+    setSelectMode(prev => !prev)
+    // 清空已选项
+    setSelectedItems([])
+  }
+
+  // 切换选择状态
+  const toggleItemSelection = (key: string) => {
+    setSelectedItems(prev => {
+      if (prev.includes(key)) {
+        return prev.filter(item => item !== key)
+      } else {
+        return [...prev, key]
+      }
+    })
+  }
+
+  // 全选当前目录下的文件
+  const selectAllFiles = () => {
+    const fileKeys = filteredObjects.map(obj => obj.key)
+    setSelectedItems(fileKeys)
+  }
+
+  // 取消全选
+  const deselectAll = () => {
+    setSelectedItems([])
+  }
+
+  // 批量删除确认
+  const confirmBulkDelete = async () => {
+    if (selectedItems.length === 0) return
+
+    try {
+      await onBulkDelete(selectedItems)
+      setBulkDeleteDialogOpen(false)
+      setSelectedItems([])
+      toast.success(`成功删除 ${selectedItems.length} 个文件`)
+    } catch (error) {
+      console.error('Error bulk deleting objects:', error)
+      toast.error(error instanceof Error ? error.message : '批量删除文件失败')
     }
   }
 
@@ -198,8 +267,50 @@ export default function FileBrowser({
           <Button variant="outline" size="icon" onClick={onRefresh}>
             <RefreshCw className="h-4 w-4" />
           </Button>
+          <Button
+            variant={selectMode ? 'destructive' : 'secondary'}
+            size="sm"
+            onClick={toggleSelectMode}
+            className="ml-2 font-medium"
+          >
+            {selectMode ? '退出多选' : '多选文件'}
+          </Button>
         </div>
       </div>
+
+      {/* 多选模式下的操作栏 */}
+      {selectMode && (
+        <div className="flex justify-between items-center mb-4 p-2 bg-muted/30 rounded-md">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">已选择 {selectedItems.length} 个文件</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={selectAllFiles}
+              disabled={filteredObjects.length === 0}
+            >
+              全选
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={deselectAll}
+              disabled={selectedItems.length === 0}
+            >
+              取消全选
+            </Button>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setBulkDeleteDialogOpen(true)}
+            disabled={selectedItems.length === 0}
+          >
+            <Trash className="h-4 w-4 mr-2" />
+            删除所选
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="w-full">
@@ -220,7 +331,8 @@ export default function FileBrowser({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[400px]">名称</TableHead>
+                {selectMode && <TableHead className="w-10"></TableHead>}
+                <TableHead className={selectMode ? 'w-[390px]' : 'w-[400px]'}>名称</TableHead>
                 <TableHead>大小</TableHead>
                 <TableHead>修改日期</TableHead>
                 <TableHead className="text-right">操作</TableHead>
@@ -229,7 +341,7 @@ export default function FileBrowser({
             <TableBody>
               {filteredFolders.length === 0 && filteredObjects.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={selectMode ? 5 : 4} className="h-24 text-center">
                     没有找到文件或文件夹
                   </TableCell>
                 </TableRow>
@@ -237,6 +349,7 @@ export default function FileBrowser({
 
               {filteredFolders.map(folder => (
                 <TableRow key={folder.path}>
+                  {selectMode && <TableCell className="w-10">{/* 文件夹不支持多选 */}</TableCell>}
                   <TableCell className="font-medium">
                     <div
                       className="flex items-center cursor-pointer hover:text-blue-600"
@@ -252,7 +365,7 @@ export default function FileBrowser({
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleDeleteClick(folder.path, folder.name)}
+                      onClick={() => handleDeleteClick(folder.path, folder.name, true)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -262,6 +375,22 @@ export default function FileBrowser({
 
               {filteredObjects.map(object => (
                 <TableRow key={object.key}>
+                  {selectMode && (
+                    <TableCell className="w-10">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => toggleItemSelection(object.key)}
+                        className="p-0"
+                      >
+                        {selectedItems.includes(object.key) ? (
+                          <CheckSquare className="h-5 w-5 text-primary" />
+                        ) : (
+                          <Square className="h-5 w-5" />
+                        )}
+                      </Button>
+                    </TableCell>
+                  )}
                   <TableCell className="font-medium">
                     <div className="flex items-center">
                       {getFileIcon(object)}
@@ -272,7 +401,7 @@ export default function FileBrowser({
                   <TableCell>{formatDate(object.lastModified)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end">
-                      {!object.isFolder && (
+                      {!object.isFolder && !selectMode && (
                         <>
                           <Button variant="ghost" size="icon" onClick={() => onPreview(object)}>
                             <Eye className="h-4 w-4" />
@@ -286,13 +415,15 @@ export default function FileBrowser({
                           </Button>
                         </>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteClick(object.key, getFileName(object.key))}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {!selectMode && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteClick(object.key, getFileName(object.key))}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -302,11 +433,23 @@ export default function FileBrowser({
         </div>
       )}
 
+      {/* 单个文件/文件夹删除对话框 */}
       <DeleteConfirmDialog
         isOpen={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         title={objectNameToDelete}
         onConfirm={confirmDelete}
+        isFolder={isFolder}
+      />
+
+      {/* 批量删除对话框 */}
+      <DeleteConfirmDialog
+        isOpen={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title={`${selectedItems.length} 个文件`}
+        onConfirm={confirmBulkDelete}
+        isFolder={false}
+        isBulkDelete={true}
       />
     </div>
   )
