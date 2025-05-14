@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { X, Download, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -20,11 +21,7 @@ interface FilePreviewProps {
   object: S3Object | null
 }
 
-export default function FilePreview({
-  isOpen,
-  onOpenChange,
-  object,
-}: FilePreviewProps) {
+export default function FilePreview({ isOpen, onOpenChange, object }: FilePreviewProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -36,7 +33,7 @@ export default function FilePreview({
   // Check if file is previewable
   const isPreviewable = (contentType: string | undefined) => {
     if (!contentType) return false
-    
+
     return (
       contentType.startsWith('image/') ||
       contentType.startsWith('video/') ||
@@ -52,13 +49,13 @@ export default function FilePreview({
   useEffect(() => {
     const getSignedUrl = async () => {
       if (!object || !isOpen) return
-      
+
       setIsLoading(true)
-      
+
       try {
         const response = await fetch(`/api/s3/url?key=${encodeURIComponent(object.key)}`)
         const data = await response.json()
-        
+
         if (data.url) {
           setPreviewUrl(data.url)
         } else {
@@ -71,7 +68,7 @@ export default function FilePreview({
         setIsLoading(false)
       }
     }
-    
+
     if (isOpen && object) {
       getSignedUrl()
     } else {
@@ -99,7 +96,7 @@ export default function FilePreview({
             </div>
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="mt-4">
           {isLoading ? (
             <div className="flex justify-center items-center h-[400px]">
@@ -108,46 +105,42 @@ export default function FilePreview({
           ) : previewUrl && isPreviewable(object.contentType) ? (
             <div className="max-h-[500px] overflow-auto">
               {object.contentType?.startsWith('image/') && (
-                <img 
-                  src={previewUrl} 
-                  alt={getFileName(object.key)} 
-                  className="max-w-full h-auto mx-auto"
-                />
+                <div className="relative w-full h-[400px]">
+                  <Image
+                    src={previewUrl || ''}
+                    alt={getFileName(object.key)}
+                    fill
+                    style={{ objectFit: 'contain' }}
+                    unoptimized // 使用未优化模式，因为我们使用的是预签名URL
+                  />
+                </div>
               )}
-              
+
               {object.contentType?.startsWith('video/') && (
-                <video 
-                  src={previewUrl} 
-                  controls 
-                  className="max-w-full h-auto mx-auto"
-                >
+                <video src={previewUrl} controls className="max-w-full h-auto mx-auto">
                   您的浏览器不支持视频标签
                 </video>
               )}
-              
+
               {object.contentType?.startsWith('audio/') && (
-                <audio 
-                  src={previewUrl} 
-                  controls 
-                  className="w-full mt-4"
-                >
+                <audio src={previewUrl} controls className="w-full mt-4">
                   您的浏览器不支持音频标签
                 </audio>
               )}
-              
+
               {object.contentType === 'application/pdf' && (
-                <iframe 
-                  src={`${previewUrl}#toolbar=0`} 
+                <iframe
+                  src={`${previewUrl}#toolbar=0`}
                   className="w-full h-[500px]"
                   title={getFileName(object.key)}
                 />
               )}
-              
-              {(object.contentType === 'text/plain' || 
+
+              {(object.contentType === 'text/plain' ||
                 object.contentType === 'application/json' ||
                 object.contentType === 'text/html') && (
-                <iframe 
-                  src={previewUrl} 
+                <iframe
+                  src={previewUrl}
                   className="w-full h-[500px]"
                   title={getFileName(object.key)}
                 />
@@ -163,7 +156,7 @@ export default function FilePreview({
             </div>
           )}
         </div>
-        
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             关闭

@@ -44,15 +44,23 @@ export default function DeleteConfirmDialog({
         <DialogHeader>
           <DialogTitle>确认删除</DialogTitle>
           <DialogDescription>
-            您确定要删除 "{title}" 吗？此操作无法撤销。
+            您确定要删除 &ldquo;{title}&rdquo; 吗？此操作无法撤销。
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isConfirming || isDeleting}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isConfirming || isDeleting}
+          >
             取消
           </Button>
-          <Button variant="destructive" onClick={handleConfirm} disabled={isConfirming || isDeleting}>
-            {(isConfirming || isDeleting) ? (
+          <Button
+            variant="destructive"
+            onClick={handleConfirm}
+            disabled={isConfirming || isDeleting}
+          >
+            {isConfirming || isDeleting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 删除中...

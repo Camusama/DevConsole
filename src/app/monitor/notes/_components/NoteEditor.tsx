@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Save, X, Loader2 } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Save, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -11,7 +11,6 @@ import {
   SheetTitle,
   SheetDescription,
   SheetFooter,
-  SheetClose,
 } from '@/components/ui/sheet'
 import { Note } from '@/lib/notionClient'
 import dynamic from 'next/dynamic'
@@ -27,7 +26,7 @@ interface NoteEditorProps {
   onOpenChange: (open: boolean) => void
   currentNote: Note
   setCurrentNote: (note: Note) => void
-  saveNote: () => void
+  saveNote: () => Promise<void>
   editMode: boolean
 }
 
@@ -78,15 +77,15 @@ export default function NoteEditor({
     setCurrentNote({ ...currentNote, content: value })
   }
 
-  // Modify save handler to include loading state
-  const handleSave = async () => {
+  // Modify save handler to include loading state and use useCallback
+  const handleSave = useCallback(async () => {
     setIsSaving(true)
     try {
       await saveNote()
     } finally {
       setIsSaving(false)
     }
-  }
+  }, [saveNote])
 
   // Update keyboard shortcut handler
   useEffect(() => {
