@@ -69,7 +69,6 @@ export default function FileBrowser({
   // 多选相关状态
   const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
-  const [selectMode, setSelectMode] = useState(false)
 
   // Filter objects based on search term
   const filteredObjects = objects.filter(obj =>
@@ -198,13 +197,6 @@ export default function FileBrowser({
     }
   }
 
-  // 切换选择模式
-  const toggleSelectMode = () => {
-    setSelectMode(prev => !prev)
-    // 清空已选项
-    setSelectedItems([])
-  }
-
   // 切换选择状态
   const toggleItemSelection = (key: string) => {
     setSelectedItems(prev => {
@@ -267,19 +259,11 @@ export default function FileBrowser({
           <Button variant="outline" size="icon" onClick={onRefresh}>
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button
-            variant={selectMode ? 'destructive' : 'secondary'}
-            size="sm"
-            onClick={toggleSelectMode}
-            className="ml-2 font-medium"
-          >
-            {selectMode ? '退出多选' : '多选文件'}
-          </Button>
         </div>
       </div>
 
-      {/* 多选模式下的操作栏 */}
-      {selectMode && (
+      {/* 批量操作栏 - 当选择了文件时显示 */}
+      {selectedItems.length > 0 && (
         <div className="flex justify-between items-center mb-4 p-2 bg-muted/30 rounded-md">
           <div className="flex items-center gap-2">
             <span className="text-sm">已选择 {selectedItems.length} 个文件</span>
@@ -300,12 +284,7 @@ export default function FileBrowser({
               取消全选
             </Button>
           </div>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setBulkDeleteDialogOpen(true)}
-            disabled={selectedItems.length === 0}
-          >
+          <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}>
             <Trash className="h-4 w-4 mr-2" />
             删除所选
           </Button>
@@ -331,8 +310,8 @@ export default function FileBrowser({
           <Table>
             <TableHeader>
               <TableRow>
-                {selectMode && <TableHead className="w-10"></TableHead>}
-                <TableHead className={selectMode ? 'w-[390px]' : 'w-[400px]'}>名称</TableHead>
+                <TableHead className="w-10"></TableHead>
+                <TableHead className="w-[390px]">名称</TableHead>
                 <TableHead>大小</TableHead>
                 <TableHead>修改日期</TableHead>
                 <TableHead className="text-right">操作</TableHead>
@@ -341,7 +320,7 @@ export default function FileBrowser({
             <TableBody>
               {filteredFolders.length === 0 && filteredObjects.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={selectMode ? 5 : 4} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     没有找到文件或文件夹
                   </TableCell>
                 </TableRow>
@@ -349,7 +328,7 @@ export default function FileBrowser({
 
               {filteredFolders.map(folder => (
                 <TableRow key={folder.path}>
-                  {selectMode && <TableCell className="w-10">{/* 文件夹不支持多选 */}</TableCell>}
+                  <TableCell className="w-10">{/* 文件夹不支持多选 */}</TableCell>
                   <TableCell className="font-medium">
                     <div
                       className="flex items-center cursor-pointer hover:text-blue-600"
@@ -375,22 +354,20 @@ export default function FileBrowser({
 
               {filteredObjects.map(object => (
                 <TableRow key={object.key}>
-                  {selectMode && (
-                    <TableCell className="w-10">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => toggleItemSelection(object.key)}
-                        className="p-0"
-                      >
-                        {selectedItems.includes(object.key) ? (
-                          <CheckSquare className="h-5 w-5 text-primary" />
-                        ) : (
-                          <Square className="h-5 w-5" />
-                        )}
-                      </Button>
-                    </TableCell>
-                  )}
+                  <TableCell className="w-10">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => toggleItemSelection(object.key)}
+                      className="p-0"
+                    >
+                      {selectedItems.includes(object.key) ? (
+                        <CheckSquare className="h-5 w-5 text-primary" />
+                      ) : (
+                        <Square className="h-5 w-5" />
+                      )}
+                    </Button>
+                  </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center">
                       {getFileIcon(object)}
@@ -401,7 +378,7 @@ export default function FileBrowser({
                   <TableCell>{formatDate(object.lastModified)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end">
-                      {!object.isFolder && !selectMode && (
+                      {!object.isFolder && (
                         <>
                           <Button variant="ghost" size="icon" onClick={() => onPreview(object)}>
                             <Eye className="h-4 w-4" />
@@ -415,15 +392,13 @@ export default function FileBrowser({
                           </Button>
                         </>
                       )}
-                      {!selectMode && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteClick(object.key, getFileName(object.key))}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteClick(object.key, getFileName(object.key))}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
