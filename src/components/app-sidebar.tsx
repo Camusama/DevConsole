@@ -81,6 +81,10 @@ export const data = {
           title: 'Notes',
           url: '/monitor/notes',
         },
+        {
+          title: 'S3 Storage',
+          url: '/monitor/S3-storage',
+        },
       ],
     },
     {
