@@ -75,7 +75,7 @@ export async function PUT(request: NextRequest) {
     }
 
     await db
-      .collection('scripts')
+      .collection('deploy_history')
       .updateOne({ _id: new ObjectId(_id.toString()) }, { $set: updatedScript })
 
     return NextResponse.json(
