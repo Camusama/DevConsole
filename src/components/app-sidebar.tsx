@@ -85,6 +85,10 @@ export const data = {
           title: 'S3 Storage',
           url: '/monitor/S3-storage',
         },
+        {
+          title: 'Deploy',
+          url: '/monitor/deploy',
+        },
       ],
     },
     {

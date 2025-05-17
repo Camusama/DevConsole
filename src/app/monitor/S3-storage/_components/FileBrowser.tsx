@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
-import { S3Object, S3Folder } from '@/lib/s3Client'
+import type { S3Object, S3Folder } from '@/lib/s3Client'
 import { formatBytes, formatDate } from '../_utils/formatters'
 import {
   Table,
@@ -139,7 +139,7 @@ export default function FileBrowser({
   }
 
   // Handle delete confirmation
-  const handleDeleteClick = (key: string, name: string, folder: boolean = false) => {
+  const handleDeleteClick = (key: string, name: string, folder = false) => {
     setObjectToDelete(key)
     setObjectNameToDelete(name)
     setIsFolder(folder)
