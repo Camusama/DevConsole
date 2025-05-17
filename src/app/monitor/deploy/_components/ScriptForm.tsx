@@ -74,16 +74,14 @@ export default function ScriptForm({
     <>
       <SheetHeader>
         <SheetTitle>{editMode ? '编辑脚本' : '添加新脚本'}</SheetTitle>
-        <SheetDescription>
-          {editMode ? '修改脚本信息' : '填写新脚本的详细信息'}
-        </SheetDescription>
+        <SheetDescription>{editMode ? '修改脚本信息' : '填写新脚本的详细信息'}</SheetDescription>
       </SheetHeader>
-      <div className="py-4 space-y-4">
+      <div className=" space-y-4 p-4">
         <FormField label="名称" id="name">
           <Input
             id="name"
             value={currentScript.name}
-            onChange={(e) => setCurrentScript({ ...currentScript, name: e.target.value })}
+            onChange={e => setCurrentScript({ ...currentScript, name: e.target.value })}
             onKeyDown={handleKeyDown}
             placeholder="脚本名称"
           />
@@ -92,7 +90,7 @@ export default function ScriptForm({
           <Input
             id="scriptPath"
             value={currentScript.scriptPath}
-            onChange={(e) => setCurrentScript({ ...currentScript, scriptPath: e.target.value })}
+            onChange={e => setCurrentScript({ ...currentScript, scriptPath: e.target.value })}
             onKeyDown={handleKeyDown}
             placeholder="/path/to/your/script.sh"
           />

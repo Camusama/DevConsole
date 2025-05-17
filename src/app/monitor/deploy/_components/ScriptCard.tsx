@@ -40,18 +40,19 @@ export default function ScriptCard({
   }
 
   // Get the last execution record if available
-  const lastExecution = script.executionHistory && script.executionHistory.length > 0
-    ? script.executionHistory[script.executionHistory.length - 1]
-    : null
+  const lastExecution =
+    script.executionHistory && script.executionHistory.length > 0
+      ? script.executionHistory[script.executionHistory.length - 1]
+      : null
 
   // Format the execution status
   const getExecutionStatus = () => {
     if (!lastExecution) return null
-    
+
     const exitCode = lastExecution.exitCode
     const statusColor = exitCode === 0 ? 'text-green-600' : 'text-red-600'
     const statusText = exitCode === 0 ? '成功' : '失败'
-    
+
     return (
       <span className={statusColor}>
         上次执行: {statusText} ({formatDate(new Date(lastExecution.timestamp))})
@@ -70,14 +71,18 @@ export default function ScriptCard({
         <div className="flex justify-between items-start mb-2">
           <h3 className="text-lg font-medium line-clamp-1">{script.name}</h3>
         </div>
-        <p className="text-sm text-muted-foreground mb-2 line-clamp-1">{script.scriptPath}</p>
+        <p className="text-sm text-muted-foreground mb-2 line-clamp-1">
+          {script.scriptPath.startsWith('http')
+            ? new URL(script.scriptPath).pathname
+            : script.scriptPath}
+        </p>
         <div className="mt-auto text-xs text-muted-foreground">
           {getExecutionStatus() || <span>未执行</span>}
         </div>
       </CardContent>
       <CardFooter className="p-4 pt-0 flex justify-between items-center">
         <span className="text-xs text-muted-foreground">
-          {formatDate(new Date(script.updatedAt || script.createdAt))}
+          {formatDate(new Date(script.updatedAt || script.createdAt || ''))}
         </span>
         <div className={`flex gap-2 transition-opacity ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
           <TooltipProvider>
@@ -87,7 +92,7 @@ export default function ScriptCard({
                   variant="outline"
                   size="sm"
                   className="h-8 w-8 p-0"
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation()
                     onViewHistory(script)
                   }}
@@ -127,7 +132,7 @@ export default function ScriptCard({
                   variant="outline"
                   size="sm"
                   className="h-8 w-8 p-0"
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation()
                     onEdit(script)
                   }}
@@ -146,9 +151,9 @@ export default function ScriptCard({
                   variant="outline"
                   size="sm"
                   className="h-8 w-8 p-0"
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation()
-                    onDelete(script._id)
+                    onDelete(script._id || '')
                   }}
                 >
                   <Trash2 className="h-4 w-4" />
