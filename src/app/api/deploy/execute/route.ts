@@ -42,13 +42,13 @@ export async function POST(request: NextRequest) {
     const client = await clientPromise
     const db = client.db('dev-console')
 
-    await db.collection('scripts').updateOne(
+    await db.collection('deploy_history').updateOne(
       { _id: new ObjectId(scriptId) },
       {
         $push: {
           executionHistory: {
             $each: [executionRecord],
-            $slice: -10, // Keep only the last 10 execution records
+            $slice: -5, // Keep only the last 10 execution records
           },
         },
       }

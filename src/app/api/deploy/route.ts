@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const client = await clientPromise
     const db = client.db('dev-console')
-    const scripts = await db.collection('scripts').find({}).toArray()
+    const scripts = await db.collection('deploy_history').find({}).toArray()
 
     return NextResponse.json({ scripts }, { status: 200 })
   } catch (error) {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     }
 
-    const result = await db.collection('scripts').insertOne(script)
+    const result = await db.collection('deploy_history').insertOne(script)
 
     return NextResponse.json(
       {
@@ -107,7 +107,7 @@ export async function DELETE(request: NextRequest) {
     const client = await clientPromise
     const db = client.db('dev-console')
 
-    await db.collection('scripts').deleteOne({ _id: new ObjectId(id.toString()) })
+    await db.collection('deploy_history').deleteOne({ _id: new ObjectId(id.toString()) })
 
     return NextResponse.json({ message: '脚本删除成功' }, { status: 200 })
   } catch (error) {
