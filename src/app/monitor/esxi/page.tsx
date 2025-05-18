@@ -68,12 +68,15 @@ export default function Home() {
 
   // 过滤虚拟机数据
   const filteredData = useMemo(() => {
-    if (!data?.data || !Array.isArray(data.data)) return []
+    let targetSource: any[] = data.data
+    if (!data?.data || !Array.isArray(data.data) || !data.isSuccess) {
+      targetSource = getLocalCache()?.data.data || []
+    }
 
-    if (!searchTerm.trim()) return data.data
+    if (!searchTerm.trim()) return targetSource
 
     const term = searchTerm.toLowerCase()
-    return data.data.filter((vm: Vm) => {
+    return targetSource.filter((vm: Vm) => {
       return (
         vm.name.toLowerCase().includes(term) ||
         vm.os.toLowerCase().includes(term) ||
