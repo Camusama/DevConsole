@@ -64,9 +64,13 @@ export default function ScriptForm({
 
   // Add event listener for keyboard shortcuts
   useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown)
+    document.addEventListener('keydown', (e: globalThis.KeyboardEvent) =>
+      handleKeyDown(e as unknown as KeyboardEvent)
+    )
     return () => {
-      document.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('keydown', (e: globalThis.KeyboardEvent) =>
+        handleKeyDown(e as unknown as KeyboardEvent)
+      )
     }
   }, [handleKeyDown])
 

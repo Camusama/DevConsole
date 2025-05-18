@@ -84,7 +84,11 @@ export default function ScriptCard({
         <span className="text-xs text-muted-foreground">
           {formatDate(new Date(script.updatedAt || script.createdAt || ''))}
         </span>
-        <div className={`flex gap-2 transition-opacity ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+        <div
+          className={`flex gap-2 transition-opacity ${
+            isHovered || isExecuting ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>

@@ -48,9 +48,9 @@ export async function POST(request: NextRequest) {
         $push: {
           executionHistory: {
             $each: [executionRecord],
-            $slice: -5, // Keep only the last 10 execution records
+            $slice: -5, // Keep only the last 5 execution records
           },
-        },
+        } as any,
       }
     )
 
