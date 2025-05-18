@@ -39,7 +39,7 @@ export default function Home() {
       if (
         data?.isSuccess &&
         typeof window !== 'undefined' &&
-        Array.isArray(data.data) &&
+        Array.isArray(data?.data) &&
         data?.data?.length > 0
       ) {
         const cacheData = {
@@ -68,9 +68,9 @@ export default function Home() {
 
   // 过滤虚拟机数据
   const filteredData = useMemo(() => {
-    let targetSource: any[] = data.data
-    if (!data?.data || !Array.isArray(data.data) || !data.isSuccess) {
-      targetSource = getLocalCache()?.data.data || []
+    let targetSource: any[] = data?.data
+    if (!data?.data || !Array.isArray(data?.data) || !data.isSuccess) {
+      targetSource = getLocalCache()?.data?.data || []
     }
 
     if (!searchTerm.trim()) return targetSource
