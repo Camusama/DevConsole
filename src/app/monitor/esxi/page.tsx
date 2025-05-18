@@ -123,7 +123,12 @@ export default function Home() {
             {cacheTime ? `上次更新时间: ${cacheTime}` : '无缓存数据'}
           </div>
           <div className="text-xs text-gray-400">
-            {isValidating ? '正在更新数据...' : '数据已是最新'}
+            {isValidating
+              ? '正在更新数据...'
+              : cacheTime &&
+                new Date().getTime() - new Date(cacheTime).getTime() > 2 * 60 * 60 * 1000
+              ? '使用缓存数据'
+              : '数据已是最新'}
           </div>
         </div>
         <Button
