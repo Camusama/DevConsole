@@ -7,37 +7,26 @@ ARCHIVE_URL="https://r2lobe.marquez.cc/deploy/dev-console/dev-console-archive.ta
 ARCHIVE_FILE="dev-console-archive.tar.gz"
 TIMESTAMP=$(date +"%Y-%m-%d_%H:%M:%S")
 
-# 检查 /root/dev/DevConsole 是否存在
-if [ ! -d "$PROJECT_DIR" ]; then
-  echo "项目目录不存在，开始创建..."
-  
-  # 检查 /root/dev 是否存在，不存在则创建
-  if [ ! -d "$DEV_DIR" ]; then
-    echo "创建目录: $DEV_DIR"
-    mkdir -p "$DEV_DIR"
-  fi
-  
-  # 克隆仓库
-  echo "克隆仓库到: $PROJECT_DIR"
-  cd "$DEV_DIR"
-  git clone git@github.com:Camusama/DevConsole.git
-  
-  if [ $? -ne 0 ]; then
-    echo "克隆仓库失败，退出脚本"
-    exit 1
-  fi
-else
-  echo "项目目录已存在，更新代码..."
-  
-  # 进入项目目录并更新代码
-  cd "$PROJECT_DIR"
-  git checkout main
-  git pull
-  
-  if [ $? -ne 0 ]; then
-    echo "更新代码失败，退出脚本"
-    exit 1
-  fi
+# 检查 /root/dev 是否存在，不存在则创建
+if [ ! -d "$DEV_DIR" ]; then
+  echo "创建目录: $DEV_DIR"
+  mkdir -p "$DEV_DIR"
+fi
+
+# 如果项目目录存在，先删除它
+if [ -d "$PROJECT_DIR" ]; then
+  echo "删除现有项目目录..."
+  rm -rf "$PROJECT_DIR"
+fi
+
+# 克隆仓库
+echo "克隆仓库到: $PROJECT_DIR"
+cd "$DEV_DIR"
+git clone git@github.com:Camusama/DevConsole.git
+
+if [ $? -ne 0 ]; then
+  echo "克隆仓库失败，退出脚本"
+  exit 1
 fi
 
 # 确保当前在项目目录中
@@ -76,3 +65,4 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "部署完成！"
+
