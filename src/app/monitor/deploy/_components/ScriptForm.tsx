@@ -64,13 +64,17 @@ export default function ScriptForm({
 
   // Add event listener for keyboard shortcuts
   useEffect(() => {
-    document.addEventListener('keydown', (e: globalThis.KeyboardEvent) =>
+    // Create a named handler function that can be referenced in both add and remove
+    const keydownHandler = (e: globalThis.KeyboardEvent) => {
       handleKeyDown(e as unknown as KeyboardEvent)
-    )
+    }
+
+    // Add the event listener
+    document.addEventListener('keydown', keydownHandler)
+
+    // Clean up by removing the same function reference
     return () => {
-      document.removeEventListener('keydown', (e: globalThis.KeyboardEvent) =>
-        handleKeyDown(e as unknown as KeyboardEvent)
-      )
+      document.removeEventListener('keydown', keydownHandler)
     }
   }, [handleKeyDown])
 
@@ -86,7 +90,12 @@ export default function ScriptForm({
             id="name"
             value={currentScript.name}
             onChange={e => setCurrentScript({ ...currentScript, name: e.target.value })}
-            onKeyDown={handleKeyDown}
+            onKeyDown={e => {
+              // Only handle non-Ctrl/Cmd+S key events at the input level
+              if (!(e.ctrlKey || e.metaKey) || e.key !== 's') {
+                handleKeyDown(e)
+              }
+            }}
             placeholder="脚本名称"
           />
         </FormField>
@@ -95,7 +104,12 @@ export default function ScriptForm({
             id="scriptPath"
             value={currentScript.scriptPath}
             onChange={e => setCurrentScript({ ...currentScript, scriptPath: e.target.value })}
-            onKeyDown={handleKeyDown}
+            onKeyDown={e => {
+              // Only handle non-Ctrl/Cmd+S key events at the input level
+              if (!(e.ctrlKey || e.metaKey) || e.key !== 's') {
+                handleKeyDown(e)
+              }
+            }}
             placeholder="/path/to/your/script.sh"
           />
         </FormField>
