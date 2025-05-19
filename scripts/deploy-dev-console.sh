@@ -67,7 +67,7 @@ rm "$ARCHIVE_FILE"
 # 提交更改
 echo "提交更改到 Git..."
 git add .
-git commit -m "deploy ${TIMESTAMP}"
+git commit -m "chore: deploy ${TIMESTAMP}"
 git push
 
 if [ $? -ne 0 ]; then
