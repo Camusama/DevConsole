@@ -3,7 +3,7 @@
 # 设置变量
 DEV_DIR="/root/dev"
 PROJECT_DIR="${DEV_DIR}/DevConsole"
-ARCHIVE_URL="https://r2lobe.marquez.cc/deploy/dev-console/dev-console-archive.tar.gz"
+ARCHIVE_URL="https://r2lobe.marquez.cc/deploy/dev-console/dev-console-archive.tar.gz?t=$(date +%s)"
 ARCHIVE_FILE="dev-console-archive.tar.gz"
 TIMESTAMP=$(date +"%Y-%m-%d_%H:%M:%S")
 
