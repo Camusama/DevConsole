@@ -2,8 +2,7 @@
 
 # 设置变量
 PROJECT_DIR="$(pwd)"
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-ARCHIVE_NAME="dev-console_${TIMESTAMP}.tar.gz"
+ARCHIVE_NAME="dev-console_archive.tar.gz"
 
 # 检查是否在项目根目录
 if [ ! -f "package.json" ]; then
