@@ -2,7 +2,7 @@
 
 # 设置变量
 PROJECT_DIR="$(pwd)"
-ARCHIVE_NAME="dev-console_archive.tar.gz"
+ARCHIVE_NAME="dev-console-archive.tar.gz"
 
 # 检查是否在项目根目录
 if [ ! -f "package.json" ]; then
