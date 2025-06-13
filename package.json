@@ -47,13 +47,17 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-dropzone": "^14.3.8",
+    "react-markdown": "^10.1.0",
     "react-simplemde-editor": "^5.2.0",
+    "react-syntax-highlighter": "^15.6.1",
+    "remark-gfm": "^4.0.1",
     "sonner": "^2.0.3",
     "swr": "^2.3.3",
     "tailwind-merge": "^3.2.0",
     "tencentcloud-sdk-nodejs-cvm": "^4.1.24",
     "tencentcloud-sdk-nodejs-lighthouse": "^4.1.21",
-    "wrangler": "^4.13.2"
+    "wrangler": "^4.13.2",
+    "zustand": "^5.0.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
