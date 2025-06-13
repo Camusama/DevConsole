@@ -1,4 +1,4 @@
-import { env } from '@/env'
+import { env } from '@/lib/env-adapter'
 
 export interface DifyMessage {
   role: 'user' | 'assistant'
@@ -6,13 +6,7 @@ export interface DifyMessage {
 }
 
 export interface DifyStreamResponse {
-  event:
-    | 'message'
-    | 'agent_message'
-    | 'message_end'
-    | 'message_replace'
-    | 'error'
-    | 'ping'
+  event: 'message' | 'agent_message' | 'message_end' | 'message_replace' | 'error' | 'ping'
   message_id?: string
   conversation_id?: string
   answer?: string
@@ -114,9 +108,7 @@ export class DifyService {
     // Use the proxied endpoint in development, direct URL in production
     // Priority: VITE_DIFY_API_ENDPOINT (proxy) > VITE_DIFY_API_URL (direct)
     this.apiUrl =
-      env.VITE_DIFY_API_ENDPOINT ||
-      `${env.VITE_DIFY_API_URL}/v1` ||
-      'https://api.dify.ai/v1'
+      env.VITE_DIFY_API_ENDPOINT || `${env.VITE_DIFY_API_URL}/v1` || 'https://api.dify.ai/v1'
     this.userId = env.VITE_DIFY_USER_ID || 'opencas-user'
   }
 
@@ -130,7 +122,7 @@ export class DifyService {
   async sendMessage(
     query: string,
     conversationId?: string,
-    inputs?: Record<string, any>,
+    inputs?: Record<string, any>
   ): Promise<{
     response: string
     conversationId: string
@@ -155,19 +147,13 @@ export class DifyService {
 
       if (!response.ok) {
         const errorData: DifyError = await response.json()
-        throw new Error(
-          errorData.message ||
-            `HTTP ${response.status}: ${response.statusText}`,
-        )
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
       }
 
       const data: DifyCompletionResponse = await response.json()
 
       // Get follow-up suggestions
-      const followUps = await this.getFollowUpSuggestions(
-        data.message_id,
-        data.conversation_id,
-      )
+      const followUps = await this.getFollowUpSuggestions(data.message_id, data.conversation_id)
 
       return {
         response: data.answer,
@@ -185,7 +171,7 @@ export class DifyService {
     query: string,
     conversationId?: string,
     inputs?: Record<string, any>,
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): AsyncGenerator<
     {
       content: string
@@ -216,10 +202,7 @@ export class DifyService {
 
       if (!response.ok) {
         const errorData: DifyError = await response.json()
-        throw new Error(
-          errorData.message ||
-            `HTTP ${response.status}: ${response.statusText}`,
-        )
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
       }
 
       const reader = response.body?.getReader()
@@ -243,8 +226,7 @@ export class DifyService {
 
           for (const line of lines) {
             const trimmedLine = line.trim()
-            if (trimmedLine === '' || !trimmedLine.startsWith('data: '))
-              continue
+            if (trimmedLine === '' || !trimmedLine.startsWith('data: ')) continue
 
             try {
               const jsonStr = trimmedLine.slice(6)
@@ -260,17 +242,13 @@ export class DifyService {
                   messageId: data.message_id,
                 }
 
-                if (data.conversation_id)
-                  finalConversationId = data.conversation_id
+                if (data.conversation_id) finalConversationId = data.conversation_id
                 if (data.message_id) finalMessageId = data.message_id
               } else if (data.event === 'message_end') {
                 // Get follow-up suggestions when message is complete
                 const followUps =
                   finalMessageId && finalConversationId
-                    ? await this.getFollowUpSuggestions(
-                        finalMessageId,
-                        finalConversationId,
-                      )
+                    ? await this.getFollowUpSuggestions(finalMessageId, finalConversationId)
                     : undefined
 
                 yield {
@@ -304,7 +282,7 @@ export class DifyService {
 
   async getFollowUpSuggestions(
     messageId: string,
-    conversationId: string,
+    conversationId: string
   ): Promise<string[] | undefined> {
     try {
       const response = await fetch(
@@ -312,14 +290,11 @@ export class DifyService {
         {
           method: 'GET',
           headers: this.getHeaders(),
-        },
+        }
       )
 
       if (!response.ok) {
-        console.warn(
-          'Failed to get follow-up suggestions:',
-          response.statusText,
-        )
+        console.warn('Failed to get follow-up suggestions:', response.statusText)
         return undefined
       }
 
@@ -344,7 +319,7 @@ export class DifyService {
         {
           method: 'GET',
           headers: this.getHeaders(),
-        },
+        }
       )
 
       if (!response.ok) {
@@ -361,7 +336,7 @@ export class DifyService {
 
   // 将聊天历史转换为 Dify 格式
   static convertChatHistoryToDify(
-    messages: Array<{ question?: string; answer?: string }>,
+    messages: Array<{ question?: string; answer?: string }>
   ): DifyMessage[] {
     const difyMessages: DifyMessage[] = []
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useLocation } from '@tanstack/react-router'
+import { usePathname } from 'next/navigation'
 import { useChatbotStore } from '../store'
 import { getPromptConfigForRoute, isPromptConfigDifferent } from '../prompts'
 
@@ -7,19 +7,16 @@ import { getPromptConfigForRoute, isPromptConfigDifferent } from '../prompts'
  * 监听路由变化并自动更新 chatbot 配置的 Hook
  */
 export function useRoutePrompts() {
-  const location = useLocation()
+  const pathname = usePathname()
   const { setConfig } = useChatbotStore()
   const previousPathnameRef = useRef<string>('')
 
   useEffect(() => {
-    const currentPathname = location.pathname
+    const currentPathname = pathname
     const previousPathname = previousPathnameRef.current
 
     if (!previousPathname || currentPathname !== previousPathname) {
-      if (
-        !previousPathname ||
-        isPromptConfigDifferent(previousPathname, currentPathname)
-      ) {
+      if (!previousPathname || isPromptConfigDifferent(previousPathname, currentPathname)) {
         const newConfig = getPromptConfigForRoute(currentPathname)
 
         setConfig({
@@ -32,10 +29,10 @@ export function useRoutePrompts() {
 
       previousPathnameRef.current = currentPathname
     }
-  }, [location.pathname, setConfig])
+  }, [pathname, setConfig])
 
   return {
-    currentRoute: location.pathname,
+    currentRoute: pathname,
     previousRoute: previousPathnameRef.current,
   }
 }

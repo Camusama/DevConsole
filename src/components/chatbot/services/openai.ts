@@ -1,4 +1,4 @@
-import { env } from '@/env'
+import { env } from '@/lib/env-adapter'
 
 export interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant'
@@ -47,9 +47,7 @@ export class OpenAIService {
   constructor() {
     const apiKey = env.VITE_OPENAI_API_KEY
     if (!apiKey) {
-      throw new Error(
-        'VITE_OPENAI_API_KEY is required when not using mock data',
-      )
+      throw new Error('VITE_OPENAI_API_KEY is required when not using mock data')
     }
 
     this.apiKey = apiKey
@@ -71,10 +69,7 @@ export class OpenAIService {
     }
   }
 
-  private getSuggestionPrompt(
-    userQuestion: string,
-    assistantResponse: string,
-  ): OpenAIMessage[] {
+  private getSuggestionPrompt(userQuestion: string, assistantResponse: string): OpenAIMessage[] {
     return [
       {
         role: 'system',
@@ -106,7 +101,7 @@ Example format: ["Question 1?", "Question 2?", "Question 3?"]`,
   async sendMessage(
     userMessage: string,
     conversationHistory: OpenAIMessage[] = [],
-    options: Partial<OpenAICompletionRequest> = {},
+    options: Partial<OpenAICompletionRequest> = {}
   ): Promise<string> {
     const messages: OpenAIMessage[] = [
       this.getSystemMessage(),
@@ -133,8 +128,7 @@ Example format: ["Question 1?", "Question 2?", "Question 3?"]`,
       if (!response.ok) {
         const errorData: OpenAIError = await response.json()
         throw new Error(
-          errorData.error.message ||
-            `HTTP ${response.status}: ${response.statusText}`,
+          errorData.error.message || `HTTP ${response.status}: ${response.statusText}`
         )
       }
 
@@ -150,7 +144,7 @@ Example format: ["Question 1?", "Question 2?", "Question 3?"]`,
     userMessage: string,
     conversationHistory: OpenAIMessage[] = [],
     options: Partial<OpenAICompletionRequest> = {},
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): AsyncGenerator<string, void, unknown> {
     const messages: OpenAIMessage[] = [
       this.getSystemMessage(),
@@ -178,8 +172,7 @@ Example format: ["Question 1?", "Question 2?", "Question 3?"]`,
       if (!response.ok) {
         const errorData: OpenAIError = await response.json()
         throw new Error(
-          errorData.error.message ||
-            `HTTP ${response.status}: ${response.statusText}`,
+          errorData.error.message || `HTTP ${response.status}: ${response.statusText}`
         )
       }
 
@@ -234,7 +227,7 @@ Example format: ["Question 1?", "Question 2?", "Question 3?"]`,
 
   async generateFollowUpSuggestions(
     userQuestion: string,
-    assistantResponse: string,
+    assistantResponse: string
   ): Promise<string[] | undefined> {
     try {
       const messages = this.getSuggestionPrompt(userQuestion, assistantResponse)
@@ -254,10 +247,7 @@ Example format: ["Question 1?", "Question 2?", "Question 3?"]`,
       })
 
       if (!response.ok) {
-        console.warn(
-          'Failed to generate follow-up suggestions:',
-          response.statusText,
-        )
+        console.warn('Failed to generate follow-up suggestions:', response.statusText)
         return undefined
       }
 
@@ -277,14 +267,14 @@ Example format: ["Question 1?", "Question 2?", "Question 3?"]`,
       } catch (parseError) {
         console.warn('Failed to parse follow-up suggestions JSON:', parseError)
         // Fallback: try to extract questions from text
-        const lines = content.split('\n').filter((line) => line.trim())
+        const lines = content.split('\n').filter(line => line.trim())
         const questions = lines
-          .filter((line) => line.includes('?'))
-          .map((line) =>
+          .filter(line => line.includes('?'))
+          .map(line =>
             line
               .replace(/^\d+\.\s*/, '')
               .replace(/^[-*]\s*/, '')
-              .trim(),
+              .trim()
           )
           .slice(0, 3)
 
@@ -299,7 +289,7 @@ Example format: ["Question 1?", "Question 2?", "Question 3?"]`,
   }
 
   static convertChatHistoryToOpenAI(
-    messages: Array<{ question?: string; answer?: string }>,
+    messages: Array<{ question?: string; answer?: string }>
   ): OpenAIMessage[] {
     const openAIMessages: OpenAIMessage[] = []
 

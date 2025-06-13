@@ -2,14 +2,10 @@ import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import type { ChatbotStore, ChatMessage, ChatbotConfig } from './types'
 import { generateId } from './utils'
-import {
-  determineResponse,
-  getRandomDelay,
-  defaultSuggestionTags,
-} from './mock'
+import { determineResponse, getRandomDelay, defaultSuggestionTags } from './mock'
 import { OpenAIService } from './services/openai'
 import { DifyService } from './services/dify'
-import { env } from '@/env'
+import { env } from '@/lib/env-adapter'
 
 const defaultConfig: ChatbotConfig = {
   title: 'AI Assistant',
@@ -74,39 +70,37 @@ export const useChatbotStore = create<ChatbotStore>()(
     chatbotId: initialChatbotId,
 
     // Actions
-    setIsOpen: (isOpen) => {
+    setIsOpen: isOpen => {
       set({ isOpen })
     },
 
-    setIsLoading: (isLoading) => set({ isLoading }),
+    setIsLoading: isLoading => set({ isLoading }),
 
-    setIsStreaming: (isStreaming) => set({ isStreaming }),
+    setIsStreaming: isStreaming => set({ isStreaming }),
 
-    setInputText: (inputText) => set({ inputText }),
+    setInputText: inputText => set({ inputText }),
 
-    setConfig: (newConfig) =>
-      set((state) => ({
+    setConfig: newConfig =>
+      set(state => ({
         config: { ...state.config, ...newConfig },
       })),
 
     toggleSize: () =>
-      set((state) => ({
+      set(state => ({
         config: {
           ...state.config,
           size: state.config.size === 'expanded' ? 'compact' : 'expanded',
         },
       })),
 
-    addMessage: (message) =>
-      set((state) => ({
+    addMessage: message =>
+      set(state => ({
         messages: [...state.messages, { ...message, id: generateId() }],
       })),
 
     updateMessage: (id, updates) =>
-      set((state) => ({
-        messages: state.messages.map((msg) =>
-          msg.id === id ? { ...msg, ...updates } : msg,
-        ),
+      set(state => ({
+        messages: state.messages.map(msg => (msg.id === id ? { ...msg, ...updates } : msg)),
       })),
 
     clearMessages: () => set({ messages: [], conversationId: null }),
@@ -215,7 +209,7 @@ export const useChatbotStore = create<ChatbotStore>()(
         if (aiService === 'mock') {
           // Use mock data
           const delay = getRandomDelay()
-          await new Promise((resolve) => setTimeout(resolve, delay))
+          await new Promise(resolve => setTimeout(resolve, delay))
 
           // Check if request was aborted
           if (abortController?.signal.aborted) {
@@ -238,14 +232,13 @@ export const useChatbotStore = create<ChatbotStore>()(
             response = ''
 
             const currentMessages = get().messages
-            const loadingMessageId =
-              currentMessages[currentMessages.length - 1]?.id
+            const loadingMessageId = currentMessages[currentMessages.length - 1]?.id
 
             for await (const chunk of difyService.sendMessageStream(
               text,
               currentConversationId || undefined,
               inputs,
-              abortController?.signal,
+              abortController?.signal
             )) {
               if (abortController?.signal.aborted) {
                 return
@@ -286,16 +279,11 @@ export const useChatbotStore = create<ChatbotStore>()(
             const { chatbotId } = get()
 
             // Convert chat history to OpenAI format (exclude the current loading message)
-            const chatHistory = messages
-              .slice(0, -1)
-              .filter((msg) => !msg.loading)
-            const openAIHistory =
-              OpenAIService.convertChatHistoryToOpenAI(chatHistory)
+            const chatHistory = messages.slice(0, -1).filter(msg => !msg.loading)
+            const openAIHistory = OpenAIService.convertChatHistoryToOpenAI(chatHistory)
 
             // Add chatbot_id context to the conversation if available
-            const contextualText = chatbotId
-              ? `[Chatbot Session ID: ${chatbotId}] ${text}`
-              : text
+            const contextualText = chatbotId ? `[Chatbot Session ID: ${chatbotId}] ${text}` : text
 
             // Check if streaming is enabled
             if (env.VITE_OPENAI_STREAM) {
@@ -304,14 +292,13 @@ export const useChatbotStore = create<ChatbotStore>()(
               response = ''
 
               const currentMessages = get().messages
-              const loadingMessageId =
-                currentMessages[currentMessages.length - 1]?.id
+              const loadingMessageId = currentMessages[currentMessages.length - 1]?.id
 
               for await (const chunk of openAIService.sendMessageStream(
                 contextualText,
                 openAIHistory,
                 {},
-                abortController?.signal,
+                abortController?.signal
               )) {
                 if (abortController?.signal.aborted) {
                   return
@@ -330,26 +317,19 @@ export const useChatbotStore = create<ChatbotStore>()(
               }
             } else {
               // Use regular response
-              response = await openAIService.sendMessage(
-                contextualText,
-                openAIHistory,
-              )
+              response = await openAIService.sendMessage(contextualText, openAIHistory)
             }
 
             // Generate follow-up suggestions after getting the response
             if (response && !abortController?.signal.aborted) {
-              followUpSuggestions =
-                await openAIService.generateFollowUpSuggestions(
-                  contextualText,
-                  response,
-                )
+              followUpSuggestions = await openAIService.generateFollowUpSuggestions(
+                contextualText,
+                response
+              )
             }
           } catch (openAIError) {
             // Check if the error is due to abort
-            if (
-              openAIError instanceof Error &&
-              openAIError.name === 'AbortError'
-            ) {
+            if (openAIError instanceof Error && openAIError.name === 'AbortError') {
               return // Request was aborted, exit silently
             }
             console.error('OpenAI API Error:', openAIError)
@@ -406,5 +386,5 @@ export const useChatbotStore = create<ChatbotStore>()(
         isProcessing = false // 重置处理锁
       }
     },
-  })),
+  }))
 )
