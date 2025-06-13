@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useCallback } from 'react'
 import { useChatbotStore } from '@/components/chatbot/store'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 
 // 开发环境日志工具
 const isDev = true
@@ -80,6 +80,7 @@ class EdgeSyncStateManager {
   private heartbeatTimer: NodeJS.Timeout | null = null
   private isConnected = false
   private lastStateUpdate = 0
+  private router: any = null
 
   // KV 轮询相关属性
   private pollingTimer: NodeJS.Timeout | null = null
@@ -90,6 +91,11 @@ class EdgeSyncStateManager {
   constructor() {
     this.setupPageStateCollection()
     this.setupVisibilityHandlers()
+  }
+
+  // 设置 Next.js router 实例
+  public setRouter(router: any) {
+    this.router = router
   }
 
   // 初始化连接
@@ -385,7 +391,7 @@ class EdgeSyncStateManager {
     }
   }
 
-  // 优化的导航处理
+  // 优化的导航处理 - 使用 Next.js 原生导航
   private handleNavigation(url: string) {
     try {
       logger.log(`🧭 Edge Sync State: 导航到 ${url}`)
@@ -395,11 +401,18 @@ class EdgeSyncStateManager {
       const targetUrl = new URL(url, currentOrigin)
 
       if (targetUrl.origin === currentOrigin) {
-        // 同域名使用 pushState 进行 SPA 导航
-        logger.log(`🔄 Edge Sync State: 使用 SPA 导航到 ${targetUrl.pathname}`)
-        window.history.pushState(null, '', targetUrl.pathname + targetUrl.search + targetUrl.hash)
-        // 触发 popstate 事件以通知 React Router
-        window.dispatchEvent(new PopStateEvent('popstate'))
+        // 同域名使用 Next.js router 进行导航
+        const navigationPath = targetUrl.pathname + targetUrl.search + targetUrl.hash
+        logger.log(`🔄 Edge Sync State: 使用 Next.js router 导航到 ${navigationPath}`)
+
+        if (this.router && typeof this.router.push === 'function') {
+          // 使用 Next.js router.push 进行导航
+          this.router.push(navigationPath)
+        } else {
+          // 如果 router 不可用，回退到 window.location
+          logger.warn('Edge Sync State: Next.js router 不可用，使用 window.location 导航')
+          window.location.href = url
+        }
       } else {
         // 跨域使用传统导航
         logger.log(`🌐 Edge Sync State: 使用传统导航到 ${url}`)
@@ -703,6 +716,7 @@ const edgeSyncManager = new EdgeSyncStateManager()
 // Provider 组件
 export const EdgeSyncStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname()
+  const router = useRouter()
   const chatbotId = useChatbotStore(state => state.chatbotId)
   const isOpen = useChatbotStore(state => state.isOpen)
   const messages = useChatbotStore(state => state.messages)
@@ -721,6 +735,11 @@ export const EdgeSyncStateProvider: React.FC<{ children: React.ReactNode }> = ({
   const syncState = useCallback(() => {
     edgeSyncManager.syncCurrentPageState()
   }, [])
+
+  // 设置 router 实例
+  useEffect(() => {
+    edgeSyncManager.setRouter(router)
+  }, [router])
 
   // 初始化连接 - 只在认证路由时启用
   useEffect(() => {
