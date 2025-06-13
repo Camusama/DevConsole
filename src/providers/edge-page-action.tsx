@@ -20,7 +20,7 @@ const EDGE_SYNC_CONFIG = {
   serverUrl: process.env.NEXT_PUBLIC_EDGE_PAGE_ACTION_URL || 'http://localhost:8787',
   stateUpdateThrottle: 1000,
   // 轮询配置
-  pollingInterval: 3000, // 2秒轮询一次
+  pollingInterval: 2000, // 2秒轮询一次
   enablePolling: true, // 启用轮询模式
   maxPollingRetries: 5, // 最大轮询重试次数
 }
@@ -327,8 +327,9 @@ class EdgeSyncStateManager {
       switch (action.type) {
         case 'navigate':
           {
-            // 支持两种格式：target 字段或 payload.url 字段
-            const navigationUrl = action.payload?.url || action.target
+            const llmPayload = action.payload as any
+            const navigationUrl =
+              typeof llmPayload === 'string' ? llmPayload : action?.payload?.url || action.target
             if (navigationUrl && typeof navigationUrl === 'string') {
               // 使用 React Router 风格的导航（如果可用）或原生导航
               this.handleNavigation(navigationUrl)
@@ -343,8 +344,10 @@ class EdgeSyncStateManager {
           }
           break
         case 'input':
-          if (action.target && action.payload?.value && typeof action.payload.value === 'string') {
-            this.handleInputChange(action.target, action.payload.value)
+          const llmPayload = action.payload as any
+          const llmInput = typeof llmPayload === 'string' ? llmPayload : action?.payload?.value
+          if (action.target && typeof llmInput === 'string') {
+            this.handleInputChange(action.target, llmInput)
           }
           break
         case 'scroll':
