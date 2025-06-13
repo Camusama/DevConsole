@@ -462,7 +462,10 @@ class EdgeSyncStateManager {
       logger.log('Edge Sync State: 节流控制，跳过本次同步')
       return // 节流
     }
-
+    if (process.env.NEXT_PUBLIC_EDGE_PAGE_SYNC_STATE === 'false') {
+      logger.log('Edge Sync State: 环境变量控制，跳过本次同步')
+      return // 环境变量控制
+    }
     try {
       const pageState = state || this.collectPageState()
       logger.log('Edge Sync State: 正在同步页面状态', { url: pageState.url })
@@ -605,7 +608,6 @@ class EdgeSyncStateManager {
 
       // 只有在 chatbot 打开的情况下才处理页面可见性变化
       if (!chatbotStore.isOpen) {
-        logger.log('Edge Sync State: 页面可见性变化，但 Chatbot 未打开，跳过处理')
         return
       }
 
