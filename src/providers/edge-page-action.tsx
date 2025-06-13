@@ -15,17 +15,17 @@ const logger = {
   error: (...args: unknown[]) => isDev && console.error(...args),
 }
 
-// Edge Sync State 配置 - 更新为 WebSocket + KV 轮询模式
+// Edge Sync State 配置 - 纯 RESTful API + 轮询模式
 const EDGE_SYNC_CONFIG = {
   serverUrl: process.env.NEXT_PUBLIC_EDGE_PAGE_ACTION_URL || 'http://localhost:8787',
-  reconnectInterval: 5000,
-  heartbeatInterval: 30000,
-  maxReconnectAttempts: 10,
   stateUpdateThrottle: 1000,
-  // KV 轮询配置
+  // 轮询配置
   pollingInterval: 2000, // 2秒轮询一次
   enablePolling: true, // 启用轮询模式
   maxPollingRetries: 5, // 最大轮询重试次数
+  // 状态同步配置
+  stateSyncInterval: 5000, // 5秒同步一次状态
+  enableStateSync: true, // 启用状态同步
 }
 
 // 页面状态接口
@@ -50,13 +50,7 @@ interface FrontendAction {
   timestamp: number
 }
 
-// WebSocket 消息接口
-interface WSMessage {
-  type: 'action' | 'ping' | 'pong' | 'connected' | 'error' | 'state_sync' | 'welcome'
-  data?: FrontendAction | PageState | Record<string, unknown>
-  timestamp: number
-  chatbotId?: string
-}
+// WebSocket 消息接口已移除，现在使用纯 RESTful API
 
 // API 响应接口
 interface ApiResponse {
@@ -72,21 +66,19 @@ interface ApiResponse {
 }
 
 class EdgeSyncStateManager {
-  private websocket: WebSocket | null = null
   private chatbotId = ''
-  private reconnectAttempts = 0
-  private reconnectTimer: NodeJS.Timeout | null = null
-  private stateUpdateTimer: NodeJS.Timeout | null = null
-  private heartbeatTimer: NodeJS.Timeout | null = null
-  private isConnected = false
-  private lastStateUpdate = 0
   private router: any = null
+  private lastStateUpdate = 0
 
-  // KV 轮询相关属性
+  // 轮询相关属性
   private pollingTimer: NodeJS.Timeout | null = null
   private isPollingEnabled = false
   private pollingRetries = 0
   private pollingCount = 0
+
+  // 状态同步相关属性
+  private stateSyncTimer: NodeJS.Timeout | null = null
+  private isStateSyncEnabled = false
 
   constructor() {
     this.setupPageStateCollection()
@@ -98,139 +90,52 @@ class EdgeSyncStateManager {
     this.router = router
   }
 
-  // 初始化连接
+  // 初始化服务
   public initialize(chatbotId: string) {
     if (this.chatbotId !== chatbotId) {
       logger.log(`Edge Sync State: 切换 ChatBot ID ${this.chatbotId} -> ${chatbotId}`)
       this.chatbotId = chatbotId
-      this.disconnect()
-      this.connect()
-    } else if (!this.isConnected && this.chatbotId) {
-      // 如果 ID 相同但未连接，尝试重新连接
-      this.connect()
+      this.stop()
+      this.start()
+    } else if (this.chatbotId && !this.isPollingEnabled) {
+      // 如果 ID 相同但服务未启动，启动服务
+      this.start()
     }
   }
 
-  // 建立 WebSocket 连接
-  private connect() {
-    if (!this.chatbotId || this.websocket) {
+  // 启动服务
+  private start() {
+    if (!this.chatbotId) {
       return
     }
 
-    try {
-      // 构建 WebSocket URL - 使用正确的路径格式
-      let wsUrl = EDGE_SYNC_CONFIG.serverUrl
-      if (wsUrl.startsWith('http://')) {
-        wsUrl = wsUrl.replace('http://', 'ws://')
-      } else if (wsUrl.startsWith('https://')) {
-        wsUrl = wsUrl.replace('https://', 'wss://')
-      } else if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) {
-        // 如果没有协议，默认使用 ws://
-        wsUrl = `ws://${wsUrl}`
-      }
+    logger.log(`🚀 Edge Sync State: 启动服务 for ${this.chatbotId}`)
 
-      const url = `${wsUrl}/ws/connect/${this.chatbotId}`
-      logger.log(`Edge Sync State: 尝试连接到 ${url}`)
-
-      this.websocket = new WebSocket(url)
-
-      this.websocket.onopen = () => {
-        logger.log('🔗 Edge Sync State: WebSocket 连接已建立')
-        this.isConnected = true
-        this.reconnectAttempts = 0
-        this.startHeartbeat()
-        this.syncCurrentPageState()
-
-        // 启动 KV 轮询机制
-        if (EDGE_SYNC_CONFIG.enablePolling) {
-          this.startActionPolling()
-        }
-      }
-
-      this.websocket.onmessage = event => {
-        try {
-          const message: WSMessage = JSON.parse(event.data)
-          this.handleWSMessage(message)
-        } catch (error) {
-          logger.error('Edge Sync State: 解析 WebSocket 消息失败', error)
-        }
-      }
-
-      this.websocket.onclose = () => {
-        logger.warn('Edge Sync State: WebSocket 连接关闭')
-        this.isConnected = false
-        this.stopHeartbeat()
-        this.scheduleReconnect()
-      }
-
-      this.websocket.onerror = error => {
-        logger.error('Edge Sync State: WebSocket 连接错误', error)
-        this.isConnected = false
-        this.stopHeartbeat()
-      }
-    } catch (error) {
-      logger.error('Edge Sync State: 建立连接失败', error)
-      this.scheduleReconnect()
+    // 启动 Action 轮询
+    if (EDGE_SYNC_CONFIG.enablePolling) {
+      this.startActionPolling()
     }
+
+    // 启动状态同步
+    if (EDGE_SYNC_CONFIG.enableStateSync) {
+      this.startStateSync()
+    }
+
+    // 立即同步一次当前页面状态
+    this.syncCurrentPageState()
   }
 
-  // 断开连接
-  private disconnect() {
-    if (this.websocket) {
-      this.websocket.close()
-      this.websocket = null
-    }
-    this.isConnected = false
-    this.stopHeartbeat()
+  // 停止服务
+  private stop() {
+    logger.log('🛑 Edge Sync State: 停止服务')
     this.stopActionPolling()
-
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer)
-      this.reconnectTimer = null
-    }
+    this.stopStateSync()
   }
 
-  // 计划重连
-  private scheduleReconnect() {
-    if (this.reconnectAttempts >= EDGE_SYNC_CONFIG.maxReconnectAttempts) {
-      logger.error('Edge Sync State: 达到最大重连次数，停止重连')
-      return
-    }
-
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer)
-    }
-
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectAttempts++
-      logger.log(
-        `Edge Sync State: 尝试重连 (${this.reconnectAttempts}/${EDGE_SYNC_CONFIG.maxReconnectAttempts})`
-      )
-      this.connect()
-    }, EDGE_SYNC_CONFIG.reconnectInterval)
-  }
-
-  // 启动心跳
-  private startHeartbeat() {
-    this.stopHeartbeat()
-    this.heartbeatTimer = setInterval(() => {
-      if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-        const pingMessage: WSMessage = {
-          type: 'ping',
-          timestamp: Date.now(),
-          chatbotId: this.chatbotId,
-        }
-        this.websocket.send(JSON.stringify(pingMessage))
-      }
-    }, EDGE_SYNC_CONFIG.heartbeatInterval)
-  }
-
-  // 停止心跳
-  private stopHeartbeat() {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer)
-      this.heartbeatTimer = null
-    }
+  // 销毁服务
+  public destroy() {
+    this.stop()
+    this.chatbotId = ''
   }
 
   // 启动 Action 轮询
@@ -243,7 +148,7 @@ class EdgeSyncStateManager {
     this.pollingRetries = 0
     this.pollingCount = 0
 
-    logger.log('🔄 Edge Sync State: 启动 KV Action 轮询')
+    logger.log('🔄 Edge Sync State: 启动 Action 轮询')
 
     this.pollingTimer = setInterval(async () => {
       try {
@@ -268,7 +173,35 @@ class EdgeSyncStateManager {
       this.pollingTimer = null
     }
     this.isPollingEnabled = false
-    logger.log('🛑 Edge Sync State: 停止 KV Action 轮询')
+    logger.log('🛑 Edge Sync State: 停止 Action 轮询')
+  }
+
+  // 启动状态同步
+  private startStateSync() {
+    if (this.isStateSyncEnabled || !this.chatbotId) {
+      return
+    }
+
+    this.isStateSyncEnabled = true
+    logger.log('🔄 Edge Sync State: 启动状态同步')
+
+    this.stateSyncTimer = setInterval(async () => {
+      try {
+        await this.syncCurrentPageState()
+      } catch (error) {
+        logger.error('Edge Sync State: 状态同步错误', error)
+      }
+    }, EDGE_SYNC_CONFIG.stateSyncInterval)
+  }
+
+  // 停止状态同步
+  private stopStateSync() {
+    if (this.stateSyncTimer) {
+      clearInterval(this.stateSyncTimer)
+      this.stateSyncTimer = null
+    }
+    this.isStateSyncEnabled = false
+    logger.log('🛑 Edge Sync State: 停止状态同步')
   }
 
   // 检查队列中的 Actions（单次检查）
@@ -306,47 +239,7 @@ class EdgeSyncStateManager {
     }
   }
 
-  // 处理 WebSocket 消息
-  private handleWSMessage(message: WSMessage) {
-    switch (message.type) {
-      case 'action':
-        if (message.data && typeof message.data === 'object' && 'type' in message.data) {
-          logger.log('🎯 通过 WebSocket 收到 Action:', message.data)
-          this.handleFrontendAction(message.data as FrontendAction)
-        }
-        break
-      case 'welcome':
-        logger.log('🎉 Edge Sync State: 收到欢迎消息', message.data)
-        // 检查是否需要立即检查队列
-        if (message.data && typeof message.data === 'object' && 'checkQueue' in message.data) {
-          logger.log('🔍 服务器提示检查队列，立即执行一次轮询')
-          setTimeout(() => this.checkQueuedActions(), 500)
-        }
-        break
-      case 'ping':
-        // 收到 ping，回复 pong
-        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-          const pongMessage: WSMessage = {
-            type: 'pong',
-            timestamp: Date.now(),
-            chatbotId: this.chatbotId,
-          }
-          this.websocket.send(JSON.stringify(pongMessage))
-        }
-        break
-      case 'pong':
-        // 心跳响应，无需处理
-        break
-      case 'connected':
-        logger.log('Edge Sync State: 连接确认', message.data)
-        break
-      case 'error':
-        logger.error('Edge Sync State: 服务器错误', message.data)
-        break
-      default:
-        logger.log('Edge Sync State:', message)
-    }
-  }
+  // WebSocket 消息处理已移除，现在使用纯 RESTful API
 
   // 处理前端 Action
   private handleFrontendAction(action: FrontendAction) {
@@ -551,14 +444,9 @@ class EdgeSyncStateManager {
     }
   }
 
-  // 同步页面状态到服务器 (通过 WebSocket)
+  // 同步页面状态到服务器 (通过 RESTful API)
   private async syncPageState(state?: PageState) {
-    if (
-      !this.isConnected ||
-      !this.chatbotId ||
-      !this.websocket ||
-      this.websocket.readyState !== WebSocket.OPEN
-    ) {
+    if (!this.chatbotId) {
       return
     }
 
@@ -570,24 +458,28 @@ class EdgeSyncStateManager {
     try {
       const pageState = state || this.collectPageState()
 
-      const message: WSMessage = {
-        type: 'state_sync',
-        data: pageState,
-        timestamp: currentTime,
-        chatbotId: this.chatbotId,
-      }
+      const response = await fetch(`${EDGE_SYNC_CONFIG.serverUrl}/api/state/${this.chatbotId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pageState),
+      })
 
-      this.websocket.send(JSON.stringify(message))
-      this.lastStateUpdate = currentTime
-      logger.log('Edge Sync State: 页面状态已同步')
+      if (response.ok) {
+        this.lastStateUpdate = currentTime
+        logger.log('Edge Sync State: 页面状态已同步')
+      } else {
+        logger.warn('Edge Sync State: 状态同步失败', response.status, response.statusText)
+      }
     } catch (error) {
       logger.error('Edge Sync State: 同步页面状态错误', error)
     }
   }
 
   // 立即同步当前页面状态
-  public syncCurrentPageState() {
-    this.syncPageState()
+  public async syncCurrentPageState() {
+    await this.syncPageState()
   }
 
   // 设置页面状态收集
@@ -671,8 +563,8 @@ class EdgeSyncStateManager {
     // 页面可见性变化
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        if (!this.isConnected && this.chatbotId) {
-          this.connect()
+        if (!this.isPollingEnabled && this.chatbotId) {
+          this.start()
         }
         this.syncPageState()
       } else {
@@ -683,31 +575,17 @@ class EdgeSyncStateManager {
 
     // 页面卸载前同步状态
     window.addEventListener('beforeunload', () => {
-      if (this.isConnected && this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-        // 通过 WebSocket 发送最后的状态更新
+      if (this.chatbotId) {
+        // 通过 RESTful API 发送最后的状态更新
         const state = this.collectPageState()
-        const message: WSMessage = {
-          type: 'state_sync',
-          data: state,
-          timestamp: Date.now(),
-          chatbotId: this.chatbotId,
-        }
-        this.websocket.send(JSON.stringify(message))
+        // 使用 sendBeacon 确保在页面卸载时能发送请求
+        const data = JSON.stringify(state)
+        navigator.sendBeacon(`${EDGE_SYNC_CONFIG.serverUrl}/api/state/${this.chatbotId}`, data)
       }
     })
   }
 
-  // 销毁管理器
-  public destroy() {
-    this.disconnect()
-
-    if (this.stateUpdateTimer) {
-      clearTimeout(this.stateUpdateTimer)
-    }
-
-    this.stopHeartbeat()
-    this.stopActionPolling()
-  }
+  // 销毁管理器（移除重复实现）
 }
 
 // 全局管理器实例
