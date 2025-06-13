@@ -15,14 +15,17 @@ const logger = {
   error: (...args: unknown[]) => isDev && console.error(...args),
 }
 
-// Edge Sync State 配置 - 更新为 WebSocket 模式
+// Edge Sync State 配置 - 更新为 WebSocket + KV 轮询模式
 const EDGE_SYNC_CONFIG = {
-  serverUrl: process.env.NEXT_PUBLIC_EDGE_PAGE_ACTION_URL || 'ws://localhost:8787',
+  serverUrl: process.env.NEXT_PUBLIC_EDGE_PAGE_ACTION_URL || 'http://localhost:8787',
   reconnectInterval: 5000,
   heartbeatInterval: 30000,
   maxReconnectAttempts: 10,
   stateUpdateThrottle: 1000,
-  wsProtocol: 'ws', // WebSocket 协议
+  // KV 轮询配置
+  pollingInterval: 2000, // 2秒轮询一次
+  enablePolling: true, // 启用轮询模式
+  maxPollingRetries: 5, // 最大轮询重试次数
 }
 
 // 页面状态接口
@@ -49,10 +52,23 @@ interface FrontendAction {
 
 // WebSocket 消息接口
 interface WSMessage {
-  type: 'action' | 'ping' | 'pong' | 'connected' | 'error' | 'state_sync'
+  type: 'action' | 'ping' | 'pong' | 'connected' | 'error' | 'state_sync' | 'welcome'
   data?: FrontendAction | PageState | Record<string, unknown>
   timestamp: number
   chatbotId?: string
+}
+
+// API 响应接口
+interface ApiResponse {
+  success: boolean
+  data?: {
+    chatbotId: string
+    actions: FrontendAction[]
+    polled: boolean
+    timestamp: number
+  }
+  error?: string
+  timestamp: number
 }
 
 class EdgeSyncStateManager {
@@ -64,6 +80,12 @@ class EdgeSyncStateManager {
   private heartbeatTimer: NodeJS.Timeout | null = null
   private isConnected = false
   private lastStateUpdate = 0
+
+  // KV 轮询相关属性
+  private pollingTimer: NodeJS.Timeout | null = null
+  private isPollingEnabled = false
+  private pollingRetries = 0
+  private pollingCount = 0
 
   constructor() {
     this.setupPageStateCollection()
@@ -90,9 +112,19 @@ class EdgeSyncStateManager {
     }
 
     try {
-      // 构建 WebSocket URL
-      const wsUrl = EDGE_SYNC_CONFIG.serverUrl.replace(/^http/, 'ws')
-      const url = `${wsUrl}/ws/${this.chatbotId}`
+      // 构建 WebSocket URL - 使用正确的路径格式
+      let wsUrl = EDGE_SYNC_CONFIG.serverUrl
+      if (wsUrl.startsWith('http://')) {
+        wsUrl = wsUrl.replace('http://', 'ws://')
+      } else if (wsUrl.startsWith('https://')) {
+        wsUrl = wsUrl.replace('https://', 'wss://')
+      } else if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) {
+        // 如果没有协议，默认使用 ws://
+        wsUrl = `ws://${wsUrl}`
+      }
+
+      const url = `${wsUrl}/ws/connect/${this.chatbotId}`
+      logger.log(`Edge Sync State: 尝试连接到 ${url}`)
 
       this.websocket = new WebSocket(url)
 
@@ -102,6 +134,11 @@ class EdgeSyncStateManager {
         this.reconnectAttempts = 0
         this.startHeartbeat()
         this.syncCurrentPageState()
+
+        // 启动 KV 轮询机制
+        if (EDGE_SYNC_CONFIG.enablePolling) {
+          this.startActionPolling()
+        }
       }
 
       this.websocket.onmessage = event => {
@@ -139,6 +176,7 @@ class EdgeSyncStateManager {
     }
     this.isConnected = false
     this.stopHeartbeat()
+    this.stopActionPolling()
 
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
@@ -189,12 +227,94 @@ class EdgeSyncStateManager {
     }
   }
 
+  // 启动 Action 轮询
+  private startActionPolling() {
+    if (this.isPollingEnabled || !this.chatbotId) {
+      return
+    }
+
+    this.isPollingEnabled = true
+    this.pollingRetries = 0
+    this.pollingCount = 0
+
+    logger.log('🔄 Edge Sync State: 启动 KV Action 轮询')
+
+    this.pollingTimer = setInterval(async () => {
+      try {
+        this.pollingCount++
+        await this.checkQueuedActions()
+      } catch (error) {
+        logger.error('Edge Sync State: 轮询错误', error)
+        this.pollingRetries++
+
+        if (this.pollingRetries >= EDGE_SYNC_CONFIG.maxPollingRetries) {
+          logger.error('Edge Sync State: 轮询重试次数过多，停止轮询')
+          this.stopActionPolling()
+        }
+      }
+    }, EDGE_SYNC_CONFIG.pollingInterval)
+  }
+
+  // 停止 Action 轮询
+  private stopActionPolling() {
+    if (this.pollingTimer) {
+      clearInterval(this.pollingTimer)
+      this.pollingTimer = null
+    }
+    this.isPollingEnabled = false
+    logger.log('🛑 Edge Sync State: 停止 KV Action 轮询')
+  }
+
+  // 检查队列中的 Actions（单次检查）
+  private async checkQueuedActions() {
+    if (!this.chatbotId) {
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `${EDGE_SYNC_CONFIG.serverUrl}/api/action/${this.chatbotId}/poll`
+      )
+      const result: ApiResponse = await response.json()
+
+      if (result.success && result.data && result.data.actions) {
+        const actions = result.data.actions
+
+        if (actions.length > 0) {
+          logger.log(`📨 Edge Sync State: 从队列中获取到 ${actions.length} 个 Action`)
+
+          actions.forEach(action => {
+            logger.log(`🎯 Edge Sync State: 队列中的 Action: ${action.type}`)
+            this.handleFrontendAction(action)
+          })
+
+          // 重置重试计数
+          this.pollingRetries = 0
+        }
+      } else if (!result.success) {
+        logger.warn('Edge Sync State: 轮询失败', result.error)
+      }
+    } catch (error) {
+      logger.error('Edge Sync State: 轮询请求失败', error)
+      throw error
+    }
+  }
+
   // 处理 WebSocket 消息
   private handleWSMessage(message: WSMessage) {
     switch (message.type) {
       case 'action':
         if (message.data && typeof message.data === 'object' && 'type' in message.data) {
+          logger.log('🎯 通过 WebSocket 收到 Action:', message.data)
           this.handleFrontendAction(message.data as FrontendAction)
+        }
+        break
+      case 'welcome':
+        logger.log('🎉 Edge Sync State: 收到欢迎消息', message.data)
+        // 检查是否需要立即检查队列
+        if (message.data && typeof message.data === 'object' && 'checkQueue' in message.data) {
+          logger.log('🔍 服务器提示检查队列，立即执行一次轮询')
+          setTimeout(() => this.checkQueuedActions(), 500)
         }
         break
       case 'ping':
@@ -218,7 +338,7 @@ class EdgeSyncStateManager {
         logger.error('Edge Sync State: 服务器错误', message.data)
         break
       default:
-        logger.log('Edge Sync State: 未知消息类型', message)
+        logger.log('Edge Sync State:', message)
     }
   }
 
@@ -231,7 +351,7 @@ class EdgeSyncStateManager {
         case 'navigate':
           {
             // 支持两种格式：target 字段或 payload.url 字段
-            const navigationUrl = action.target || action.payload?.url
+            const navigationUrl = action.payload?.url || action.target
             if (navigationUrl && typeof navigationUrl === 'string') {
               // 使用 React Router 风格的导航（如果可用）或原生导航
               this.handleNavigation(navigationUrl)
@@ -268,17 +388,21 @@ class EdgeSyncStateManager {
   // 优化的导航处理
   private handleNavigation(url: string) {
     try {
+      logger.log(`🧭 Edge Sync State: 导航到 ${url}`)
+
       // 检查是否为相对路径或同域名
       const currentOrigin = window.location.origin
       const targetUrl = new URL(url, currentOrigin)
 
       if (targetUrl.origin === currentOrigin) {
         // 同域名使用 pushState 进行 SPA 导航
+        logger.log(`🔄 Edge Sync State: 使用 SPA 导航到 ${targetUrl.pathname}`)
         window.history.pushState(null, '', targetUrl.pathname + targetUrl.search + targetUrl.hash)
         // 触发 popstate 事件以通知 React Router
         window.dispatchEvent(new PopStateEvent('popstate'))
       } else {
         // 跨域使用传统导航
+        logger.log(`🌐 Edge Sync State: 使用传统导航到 ${url}`)
         window.location.href = url
       }
     } catch (error) {
@@ -569,6 +693,7 @@ class EdgeSyncStateManager {
     }
 
     this.stopHeartbeat()
+    this.stopActionPolling()
   }
 }
 
