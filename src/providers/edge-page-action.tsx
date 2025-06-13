@@ -108,6 +108,12 @@ class EdgeSyncStateManager {
     if (isChatbotOpen && !this.isPageStateCollectionSetup) {
       this.setupPageStateCollection()
     }
+
+    // 当 chatbot 初次打开时，清除 localStorage 中的 URL 记录，确保首次打开能同步状态
+    // if (isChatbotOpen && typeof window !== 'undefined') {
+    //   localStorage.removeItem(`edge_last_synced_url_${chatbotId}`)
+    //   logger.log('Edge Sync State: 初始化时清除 localStorage 中的 URL 记录')
+    // }
   }
 
   // 启动服务
@@ -139,6 +145,12 @@ class EdgeSyncStateManager {
 
   // 销毁服务
   public destroy() {
+    // 清除 localStorage 中的 URL 记录
+    if (this.chatbotId && typeof window !== 'undefined') {
+      localStorage.removeItem(`edge_last_synced_url_${this.chatbotId}`)
+      logger.log('Edge Sync State: 销毁服务时清除 localStorage 中的 URL 记录')
+    }
+
     this.stop()
     this.chatbotId = ''
     this.isPageStateCollectionSetup = false
@@ -199,7 +211,6 @@ class EdgeSyncStateManager {
   private stopStateSync() {
     // 不再需要清除定时器，因为我们不再使用 setInterval
     this.isStateSyncEnabled = false
-    logger.log('🛑 Edge Sync State: 停止状态同步')
   }
 
   // 检查队列中的 Actions（单次检查）
@@ -466,9 +477,24 @@ class EdgeSyncStateManager {
       logger.log('Edge Sync State: 环境变量控制，跳过本次同步')
       return // 环境变量控制
     }
+
     try {
       const pageState = state || this.collectPageState()
-      logger.log('Edge Sync State: 正在同步页面状态', { url: pageState.url })
+      const currentUrl = pageState.url
+
+      // 检查是否在客户端环境
+      if (typeof window !== 'undefined') {
+        // 从 localStorage 获取上次同步的 URL
+        const lastSyncedUrl = localStorage.getItem(`edge_last_synced_url_${this.chatbotId}`)
+
+        // 如果当前 URL 与上次同步的 URL 相同，则跳过同步
+        if (lastSyncedUrl === currentUrl) {
+          logger.log('Edge Sync State: URL 未变化，跳过同步', { url: currentUrl })
+          return
+        }
+      }
+
+      logger.log('Edge Sync State: 正在同步页面状态', { url: currentUrl })
 
       const response = await fetch(`${EDGE_SYNC_CONFIG.serverUrl}/api/state/${this.chatbotId}`, {
         method: 'POST',
@@ -481,6 +507,11 @@ class EdgeSyncStateManager {
       if (response.ok) {
         this.lastStateUpdate = currentTime
         logger.log('Edge Sync State: 页面状态已同步成功')
+
+        // 同步成功后，将当前 URL 存储到 localStorage
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`edge_last_synced_url_${this.chatbotId}`, currentUrl)
+        }
       } else {
         logger.warn('Edge Sync State: 状态同步失败', response.status, response.statusText)
       }
@@ -502,7 +533,6 @@ class EdgeSyncStateManager {
     }
 
     this.isPageStateCollectionSetup = true
-    logger.log('🔄 Edge Sync State: 设置页面状态收集 (仅路由变化)')
 
     // 只设置路由变化监听，不监听页面输入变化等事件
     this.setupRouteChangeDetection()
@@ -666,6 +696,7 @@ export const EdgeSyncStateProvider: React.FC<{ children: React.ReactNode }> = ({
   const syncState = useCallback(() => {
     // 只有 chatbot 打开时才同步页面状态
     if (isOpen) {
+      // 直接调用同步方法，URL 检查已在 syncPageState 方法中处理
       edgeSyncManager.syncCurrentPageState()
     }
   }, [isOpen])
@@ -712,10 +743,30 @@ export const EdgeSyncStateProvider: React.FC<{ children: React.ReactNode }> = ({
         from: lastPathRef.current,
         to: pathname,
       })
-      syncState()
+
+      // 检查是否在客户端环境
+      if (typeof window !== 'undefined' && chatbotId) {
+        // 获取当前完整 URL
+        const currentUrl = window.location.href
+        // 从 localStorage 获取上次同步的 URL
+        const lastSyncedUrl = localStorage.getItem(`edge_last_synced_url_${chatbotId}`)
+
+        if (lastSyncedUrl === currentUrl) {
+          logger.log('Edge Sync State: 虽然路由变化，但 URL 已同步过，跳过同步', {
+            url: currentUrl,
+          })
+        } else {
+          // URL 不同，需要同步
+          syncState()
+        }
+      } else {
+        // 非客户端环境或无 chatbotId，直接同步
+        syncState()
+      }
+
       lastPathRef.current = pathname
     }
-  }, [isAuthRoute, isOpen, pathname, syncState])
+  }, [isAuthRoute, isOpen, pathname, syncState, chatbotId])
 
   // 监听自定义路由变化事件
   useEffect(() => {
@@ -728,7 +779,27 @@ export const EdgeSyncStateProvider: React.FC<{ children: React.ReactNode }> = ({
             from: lastPathRef.current,
             to: currentPath,
           })
-          syncState()
+
+          // 检查是否在客户端环境
+          if (typeof window !== 'undefined' && chatbotId) {
+            // 获取当前完整 URL
+            const currentUrl = window.location.href
+            // 从 localStorage 获取上次同步的 URL
+            const lastSyncedUrl = localStorage.getItem(`edge_last_synced_url_${chatbotId}`)
+
+            if (lastSyncedUrl === currentUrl) {
+              logger.log('Edge Sync State: 虽然检测到路由变化事件，但 URL 已同步过，跳过同步', {
+                url: currentUrl,
+              })
+            } else {
+              // URL 不同，需要同步
+              syncState()
+            }
+          } else {
+            // 非客户端环境或无 chatbotId，直接同步
+            syncState()
+          }
+
           lastPathRef.current = currentPath
         }
       }
