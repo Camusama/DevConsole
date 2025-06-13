@@ -10,10 +10,7 @@ interface MarkdownRendererProps {
   className?: string
 }
 
-export function MarkdownRenderer({
-  content,
-  className,
-}: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
   return (
     <div className={cn('markdown-content', className)}>
       <ReactMarkdown
@@ -53,31 +50,23 @@ export function MarkdownRenderer({
 
           // Paragraphs
           p: ({ children }) => (
-            <p className="mb-3 last:mb-0 text-foreground leading-relaxed">
-              {children}
-            </p>
+            <p className="mb-3 last:mb-0 text-foreground leading-relaxed">{children}</p>
           ),
 
           // Lists
           ul: ({ children }) => (
-            <ul className="list-disc list-inside mb-3 space-y-1 text-foreground">
-              {children}
-            </ul>
+            <ul className="list-disc list-inside mb-3 space-y-1 text-foreground">{children}</ul>
           ),
           ol: ({ children }) => (
-            <ol className="list-decimal list-inside mb-3 space-y-1 text-foreground">
-              {children}
-            </ol>
+            <ol className="list-decimal list-inside mb-3 space-y-1 text-foreground">{children}</ol>
           ),
-          li: ({ children }) => (
-            <li className="text-foreground leading-relaxed">{children}</li>
-          ),
+          li: ({ children }) => <li className="text-foreground leading-relaxed">{children}</li>,
 
           // Code blocks
-          code: ({ node, inline, className, children, ...props }) => {
+          code: ({ node, className, children, ...props }) => {
             const match = /language-(\w+)/.exec(className || '')
             const language = match ? match[1] : ''
-
+            const inline = (props as any).inline
             if (!inline && language) {
               return (
                 <div className="my-4 rounded-lg overflow-hidden border border-border">
@@ -133,10 +122,10 @@ export function MarkdownRenderer({
           pre: ({ children }) => {
             // Check if this pre contains a code element that was already processed
             const hasCodeChild = React.Children.toArray(children).some(
-              (child) =>
+              child =>
                 React.isValidElement(child) &&
                 child.type === 'code' &&
-                child.props.className?.includes('language-'),
+                (child.props as any).className?.includes('language-')
             )
 
             // If it has a code child with language, don't render the pre wrapper
@@ -174,20 +163,12 @@ export function MarkdownRenderer({
           // Tables
           table: ({ children }) => (
             <div className="overflow-x-auto mb-3">
-              <table className="min-w-full border border-border rounded-lg">
-                {children}
-              </table>
+              <table className="min-w-full border border-border rounded-lg">{children}</table>
             </div>
           ),
-          thead: ({ children }) => (
-            <thead className="bg-muted">{children}</thead>
-          ),
-          tbody: ({ children }) => (
-            <tbody className="divide-y divide-border">{children}</tbody>
-          ),
-          tr: ({ children }) => (
-            <tr className="hover:bg-muted/50 transition-colors">{children}</tr>
-          ),
+          thead: ({ children }) => <thead className="bg-muted">{children}</thead>,
+          tbody: ({ children }) => <tbody className="divide-y divide-border">{children}</tbody>,
+          tr: ({ children }) => <tr className="hover:bg-muted/50 transition-colors">{children}</tr>,
           th: ({ children }) => (
             <th className="px-4 py-2 text-left font-semibold text-foreground border-r border-border last:border-r-0">
               {children}
@@ -204,13 +185,9 @@ export function MarkdownRenderer({
 
           // Strong and emphasis
           strong: ({ children }) => (
-            <strong className="font-semibold text-foreground">
-              {children}
-            </strong>
+            <strong className="font-semibold text-foreground">{children}</strong>
           ),
-          em: ({ children }) => (
-            <em className="italic text-foreground">{children}</em>
-          ),
+          em: ({ children }) => <em className="italic text-foreground">{children}</em>,
         }}
       >
         {content}

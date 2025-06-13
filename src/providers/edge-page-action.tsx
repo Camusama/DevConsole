@@ -79,18 +79,19 @@ class EdgeSyncStateManager {
   private isPageStateCollectionSetup = false
 
   constructor() {
-    // 不再在构造函数中调用 setupPageStateCollection
-    // 而是在 initialize 方法中根据 chatbot 状态决定是否设置
-    this.setupVisibilityHandlers()
-  }
-
-  // 设置 Next.js router 实例
-  public setRouter(router: any) {
-    this.router = router
+    // 确保只在客户端环境中执行可能导致错误的方法
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      this.setupVisibilityHandlers()
+    }
   }
 
   // 初始化服务
   public initialize(chatbotId: string, isChatbotOpen: boolean = false) {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     if (this.chatbotId !== chatbotId) {
       logger.log(`Edge Sync State: 切换 ChatBot ID ${this.chatbotId} -> ${chatbotId}`)
       this.chatbotId = chatbotId
@@ -116,8 +117,18 @@ class EdgeSyncStateManager {
     // }
   }
 
+  // 设置 Next.js router 实例
+  public setRouter(router: any) {
+    this.router = router
+  }
+
   // 启动服务
   private start() {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     if (!this.chatbotId) {
       return
     }
@@ -139,12 +150,40 @@ class EdgeSyncStateManager {
 
   // 停止服务
   public stop() {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     this.stopActionPolling()
     this.stopStateSync()
   }
 
+  // 设置页面状态收集 - 只监听路由变化，不监听页面输入变化等事件
+  private setupPageStateCollection() {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
+    // 避免重复设置路由监听
+    if (this.isPageStateCollectionSetup) {
+      return
+    }
+
+    this.isPageStateCollectionSetup = true
+
+    // 只设置路由变化监听，不监听页面输入变化等事件
+    this.setupRouteChangeDetection()
+  }
+
   // 销毁服务
   public destroy() {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     // 清除 localStorage 中的 URL 记录
     if (this.chatbotId && typeof window !== 'undefined') {
       localStorage.removeItem(`edge_last_synced_url_${this.chatbotId}`)
@@ -158,6 +197,11 @@ class EdgeSyncStateManager {
 
   // 启动 Action 轮询
   private startActionPolling() {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     if (this.isPollingEnabled || !this.chatbotId) {
       return
     }
@@ -186,6 +230,11 @@ class EdgeSyncStateManager {
 
   // 停止 Action 轮询
   private stopActionPolling() {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     if (this.pollingTimer) {
       clearInterval(this.pollingTimer)
       this.pollingTimer = null
@@ -196,6 +245,11 @@ class EdgeSyncStateManager {
 
   // 启动状态同步 - 不再使用定时器，改为只在路由变化时同步
   private startStateSync() {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     if (this.isStateSyncEnabled || !this.chatbotId) {
       return
     }
@@ -209,12 +263,22 @@ class EdgeSyncStateManager {
 
   // 停止状态同步
   private stopStateSync() {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     // 不再需要清除定时器，因为我们不再使用 setInterval
     this.isStateSyncEnabled = false
   }
 
   // 检查队列中的 Actions（单次检查）
   private async checkQueuedActions() {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     if (!this.chatbotId) {
       return
     }
@@ -252,6 +316,11 @@ class EdgeSyncStateManager {
 
   // 处理前端 Action
   private handleFrontendAction(action: FrontendAction) {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     logger.log('Edge Sync State: 收到 Action', action)
 
     try {
@@ -295,6 +364,11 @@ class EdgeSyncStateManager {
 
   // 优化的导航处理 - 使用 Next.js 原生导航
   private handleNavigation(url: string) {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     try {
       logger.log(`🧭 Edge Sync State: 导航到 ${url}`)
 
@@ -329,6 +403,11 @@ class EdgeSyncStateManager {
 
   // 优化的元素点击处理
   private handleElementClick(target: string) {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     const element = document.querySelector(target)
     if (element && element instanceof HTMLElement) {
       // 使用 React 合成事件风格的点击
@@ -343,6 +422,11 @@ class EdgeSyncStateManager {
 
   // 优化的输入处理
   private handleInputChange(target: string, value: string) {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     const element = document.querySelector(target)
     if (element && element instanceof HTMLInputElement) {
       // 设置值并触发 React 风格的事件
@@ -365,6 +449,11 @@ class EdgeSyncStateManager {
 
   // 优化的滚动处理
   private handleScroll(payload: Record<string, unknown>) {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     const x = typeof payload.x === 'number' ? payload.x : 0
     const y = typeof payload.y === 'number' ? payload.y : 0
 
@@ -378,6 +467,17 @@ class EdgeSyncStateManager {
 
   // 收集当前页面状态（优化性能）
   private collectPageState(): PageState {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      // 返回一个最小的状态对象，避免在服务器端出错
+      return {
+        url: '',
+        title: '',
+        timestamp: Date.now(),
+        chatbotId: this.chatbotId,
+      }
+    }
+
     // 使用 requestIdleCallback 优化性能（如果可用）
     const collectData = () => {
       const inputs: Record<string, string | boolean> = {}
@@ -455,6 +555,11 @@ class EdgeSyncStateManager {
 
   // 同步页面状态到服务器 (通过 RESTful API) - 添加防抖节流
   private async syncPageState(state?: PageState) {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     if (!this.chatbotId) {
       logger.log('Edge Sync State: 未设置 chatbotId，跳过同步')
       return
@@ -525,19 +630,6 @@ class EdgeSyncStateManager {
     await this.syncPageState()
   }
 
-  // 设置页面状态收集 - 只监听路由变化，不监听页面输入变化等事件
-  private setupPageStateCollection() {
-    // 避免重复设置路由监听
-    if (this.isPageStateCollectionSetup) {
-      return
-    }
-
-    this.isPageStateCollectionSetup = true
-
-    // 只设置路由变化监听，不监听页面输入变化等事件
-    this.setupRouteChangeDetection()
-  }
-
   // 创建节流函数
   private createThrottledFunction<T extends (...args: unknown[]) => void>(
     func: T,
@@ -578,6 +670,11 @@ class EdgeSyncStateManager {
 
   // 优化的路由变化检测 - 只在路由变化时同步页面状态
   private setupRouteChangeDetection() {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     // 保存原始方法的引用
     const originalPushState = window.history.pushState.bind(window.history)
     const originalReplaceState = window.history.replaceState.bind(window.history)
@@ -631,6 +728,11 @@ class EdgeSyncStateManager {
 
   // 设置页面可见性处理
   private setupVisibilityHandlers() {
+    // 确保只在客户端环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     // 页面可见性变化
     document.addEventListener('visibilitychange', () => {
       // 获取 chatbot 状态

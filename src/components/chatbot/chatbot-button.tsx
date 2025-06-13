@@ -1,3 +1,4 @@
+'use client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { MessageCircle, X } from 'lucide-react'
@@ -53,14 +54,10 @@ export function ChatbotButton({ className }: ChatbotButtonProps) {
             'h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out',
             'bg-primary hover:bg-primary/90 text-primary-foreground',
             'border-2 border-background',
-            isOpen && 'rotate-180',
+            isOpen && 'rotate-180'
           )}
         >
-          {isOpen ? (
-            <X className="w-6 h-6" />
-          ) : (
-            <MessageCircle className="w-6 h-6" />
-          )}
+          {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
         </Button>
 
         {/* Pulse Animation for New Messages */}

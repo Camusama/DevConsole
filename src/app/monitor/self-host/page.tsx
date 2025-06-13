@@ -1,5 +1,5 @@
 'use client'
-
+export const dynamic = 'force-dynamic'
 import { CollectionPage, CollectionConfig } from '@/components/collection-manager'
 
 // Configuration for the SelfHost collection

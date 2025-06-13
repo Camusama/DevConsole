@@ -1,3 +1,4 @@
+'use client'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,11 +14,7 @@ interface ChatbotMessageProps {
   onLikeToggle?: (messageId: string, liked: boolean) => void
 }
 
-export function ChatbotMessage({
-  message,
-  onSuggestionClick,
-  onLikeToggle,
-}: ChatbotMessageProps) {
+export function ChatbotMessage({ message, onSuggestionClick, onLikeToggle }: ChatbotMessageProps) {
   const isLoading = message.loading
   const hasAnswer = !!message.answer
 
@@ -74,10 +71,7 @@ export function ChatbotMessage({
               {/* Answer Content */}
               {hasAnswer && !isLoading && (
                 <div className="bg-muted rounded-2xl rounded-tl-md px-4 py-3">
-                  <MarkdownRenderer
-                    content={message.answer!}
-                    className="text-sm leading-relaxed"
-                  />
+                  <MarkdownRenderer content={message.answer!} className="text-sm leading-relaxed" />
                 </div>
               )}
 
@@ -89,7 +83,7 @@ export function ChatbotMessage({
                     size="sm"
                     className={cn(
                       'h-8 px-2',
-                      message.liked === true && 'text-green-600 bg-green-50',
+                      message.liked === true && 'text-green-600 bg-green-50'
                     )}
                     onClick={() => onLikeToggle(message.id, true)}
                   >
@@ -98,10 +92,7 @@ export function ChatbotMessage({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={cn(
-                      'h-8 px-2',
-                      message.liked === false && 'text-red-600 bg-red-50',
-                    )}
+                    className={cn('h-8 px-2', message.liked === false && 'text-red-600 bg-red-50')}
                     onClick={() => onLikeToggle(message.id, false)}
                   >
                     <ThumbsDown className="w-3 h-3" />

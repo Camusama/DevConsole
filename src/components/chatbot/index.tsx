@@ -1,3 +1,4 @@
+'use client'
 import { useEffect } from 'react'
 import { ChatbotButton } from './chatbot-button'
 import { ChatbotDialog } from './chatbot-dialog'
