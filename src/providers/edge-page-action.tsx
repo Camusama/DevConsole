@@ -685,12 +685,9 @@ class EdgeSyncStateManager {
       const chatbotStore = useChatbotStore.getState()
       // 只有在 chatbot 打开的情况下才触发路由变化事件
       if (chatbotStore.isOpen) {
-        logger.log('Edge Sync State: 检测到路由变化，触发同步事件')
         // 这里不直接调用 syncPageState，而是在 Provider 组件中通过 lastPathRef 控制
         // 这里只是记录路由变化事件，实际同步由 Provider 组件控制
         window.dispatchEvent(new CustomEvent('edge-route-change'))
-      } else {
-        logger.log('Edge Sync State: 检测到路由变化，但 Chatbot 未打开，跳过同步')
       }
     }, 300) // 300ms 防抖
 
