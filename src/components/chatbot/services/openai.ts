@@ -1,5 +1,3 @@
-import { env } from '@/lib/env-adapter'
-
 export interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant'
   content: string
@@ -45,13 +43,13 @@ export class OpenAIService {
   private defaultModel = 'gpt-4o-mini'
 
   constructor() {
-    const apiKey = env.VITE_OPENAI_API_KEY
+    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY
     if (!apiKey) {
-      throw new Error('VITE_OPENAI_API_KEY is required when not using mock data')
+      throw new Error('NEXT_PUBLIC_OPENAI_API_KEY is required when not using mock data')
     }
 
     this.apiKey = apiKey
-    this.apiUrl = env.VITE_OPENAI_API_URL || 'https://api.openai.com/v1'
+    this.apiUrl = process.env.NEXT_PUBLIC_OPENAI_API_URL || 'https://api.openai.com/v1'
   }
 
   private getHeaders(): HeadersInit {

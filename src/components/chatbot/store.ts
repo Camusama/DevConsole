@@ -5,7 +5,6 @@ import { generateId } from './utils'
 import { determineResponse, getRandomDelay, defaultSuggestionTags } from './mock'
 import { OpenAIService } from './services/openai'
 import { DifyService } from './services/dify'
-import { env } from '@/lib/env-adapter'
 
 const defaultConfig: ChatbotConfig = {
   title: 'AI Assistant',
@@ -204,7 +203,7 @@ export const useChatbotStore = create<ChatbotStore>()(
         let newConversationId: string | null = null
         let followUpSuggestions: string[] | undefined
 
-        const aiService = env.VITE_AI_SERVICE || 'mock'
+        const aiService = process.env.NEXT_PUBLIC_AI_SERVICE || 'mock'
 
         if (aiService === 'mock') {
           // Use mock data
@@ -286,7 +285,7 @@ export const useChatbotStore = create<ChatbotStore>()(
             const contextualText = chatbotId ? `[Chatbot Session ID: ${chatbotId}] ${text}` : text
 
             // Check if streaming is enabled
-            if (env.VITE_OPENAI_STREAM) {
+            if (process.env.NEXT_PUBLIC_OPENAI_STREAM) {
               // Use streaming response
               setIsStreaming(true)
               response = ''

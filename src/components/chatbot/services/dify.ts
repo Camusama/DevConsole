@@ -1,5 +1,3 @@
-import { env } from '@/lib/env-adapter'
-
 export interface DifyMessage {
   role: 'user' | 'assistant'
   content: string
@@ -98,18 +96,20 @@ export class DifyService {
   private userId: string
 
   constructor() {
-    const apiKey = env.VITE_DIFY_API_KEY
+    const apiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY
 
     if (!apiKey) {
-      throw new Error('VITE_DIFY_API_KEY is required when using Dify service')
+      throw new Error('NEXT_PUBLIC_DIFY_API_KEY is required when using Dify service')
     }
 
     this.apiKey = apiKey
     // Use the proxied endpoint in development, direct URL in production
-    // Priority: VITE_DIFY_API_ENDPOINT (proxy) > VITE_DIFY_API_URL (direct)
+    // Priority: NEXT_PUBLIC_DIFY_API_ENDPOINT (proxy) > NEXT_PUBLIC_DIFY_API_URL (direct)
     this.apiUrl =
-      env.VITE_DIFY_API_ENDPOINT || `${env.VITE_DIFY_API_URL}/v1` || 'https://api.dify.ai/v1'
-    this.userId = env.VITE_DIFY_USER_ID || 'opencas-user'
+      process.env.NEXT_PUBLIC_DIFY_API_ENDPOINT ||
+      `${process.env.NEXT_PUBLIC_DIFY_API_URL}/v1` ||
+      'https://api.dify.ai/v1'
+    this.userId = process.env.NEXT_PUBLIC_DIFY_USER_ID || 'opencas-user'
   }
 
   private getHeaders(): HeadersInit {
