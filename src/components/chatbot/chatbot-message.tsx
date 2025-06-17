@@ -1,12 +1,32 @@
-'use client'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
 import { ThumbsUp, ThumbsDown, User, Bot } from 'lucide-react'
 import type { ChatMessage } from './types'
 import { formatTime, cn } from './utils'
 import { MarkdownRenderer } from './markdown-renderer'
+
+// ChatGPT-style typing indicator component
+function TypingIndicator() {
+  return (
+    <div className="flex items-center py-1">
+      <div className="flex space-x-1">
+        <div
+          className="w-2 h-2 bg-muted-foreground/30 rounded-full animate-bounce"
+          style={{ animationDelay: '0ms', animationDuration: '1.4s' }}
+        ></div>
+        <div
+          className="w-2 h-2 bg-muted-foreground/30 rounded-full animate-bounce"
+          style={{ animationDelay: '160ms', animationDuration: '1.4s' }}
+        ></div>
+        <div
+          className="w-2 h-2 bg-muted-foreground/30 rounded-full animate-bounce"
+          style={{ animationDelay: '320ms', animationDuration: '1.4s' }}
+        ></div>
+      </div>
+    </div>
+  )
+}
 
 interface ChatbotMessageProps {
   message: ChatMessage
@@ -47,7 +67,7 @@ export function ChatbotMessage({ message, onSuggestionClick, onLikeToggle }: Cha
       {(hasAnswer || isLoading) && (
         <div className="flex justify-start">
           <div className="flex items-start gap-3 max-w-[85%]">
-            <Avatar className="w-8 h-8 flex-shrink-0">
+            <Avatar className={cn('w-8 h-8 flex-shrink-0', isLoading && 'animate-pulse')}>
               <AvatarFallback className="bg-muted">
                 <Bot className="w-4 h-4" />
               </AvatarFallback>
@@ -61,10 +81,8 @@ export function ChatbotMessage({ message, onSuggestionClick, onLikeToggle }: Cha
 
               {/* Loading State */}
               {isLoading && (
-                <div className="bg-muted rounded-2xl rounded-tl-md px-4 py-3 space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
+                <div className="bg-muted rounded-2xl rounded-tl-md px-4 py-3">
+                  <TypingIndicator />
                 </div>
               )}
 
