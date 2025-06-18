@@ -2,6 +2,7 @@
 import React, { useEffect, useCallback } from 'react'
 import { useChatbotStore } from '@/components/chatbot/store'
 import { usePathname, useRouter } from 'next/navigation'
+import { checkQueuedActions, syncPageState, syncPageStateOnUnload } from '@/lib/edge-page-actions'
 
 // 开发环境日志工具
 const isDev = true
@@ -284,10 +285,7 @@ class EdgeSyncStateManager {
     }
 
     try {
-      const response = await fetch(
-        `${EDGE_SYNC_CONFIG.serverUrl}/api/action/${this.chatbotId}/poll`
-      )
-      const result: ApiResponse = await response.json()
+      const result = await checkQueuedActions(this.chatbotId)
 
       if (result.success && result.data && result.data.actions) {
         const actions = result.data.actions
@@ -604,15 +602,9 @@ class EdgeSyncStateManager {
 
       logger.log('Edge Sync State: 正在同步页面状态', { url: currentUrl })
 
-      const response = await fetch(`${EDGE_SYNC_CONFIG.serverUrl}/api/state/${this.chatbotId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(pageState),
-      })
+      const success = await syncPageState(this.chatbotId, pageState)
 
-      if (response.ok) {
+      if (success) {
         this.lastStateUpdate = currentTime
         logger.log('Edge Sync State: 页面状态已同步成功')
 
@@ -621,7 +613,7 @@ class EdgeSyncStateManager {
           localStorage.setItem(`edge_last_synced_url_${this.chatbotId}`, currentUrl)
         }
       } else {
-        logger.warn('Edge Sync State: 状态同步失败', response.status, response.statusText)
+        logger.warn('Edge Sync State: 状态同步失败')
       }
     } catch (error) {
       logger.error('Edge Sync State: 同步页面状态错误', error)
@@ -761,11 +753,12 @@ class EdgeSyncStateManager {
       // 只有在 chatbot 打开且有 chatbotId 的情况下才在页面卸载前同步状态
       if (this.chatbotId && chatbotStore.isOpen) {
         logger.log('Edge Sync State: 页面卸载前同步状态')
-        // 通过 RESTful API 发送最后的状态更新
+        // 通过 Server Action 发送最后的状态更新
         const state = this.collectPageState()
-        // 使用 sendBeacon 确保在页面卸载时能发送请求
-        const data = JSON.stringify(state)
-        navigator.sendBeacon(`${EDGE_SYNC_CONFIG.serverUrl}/api/state/${this.chatbotId}`, data)
+        // 使用 Server Action 进行状态同步
+        syncPageStateOnUnload(this.chatbotId, state).catch(error => {
+          logger.error('Edge Sync State: 页面卸载前同步状态失败', error)
+        })
       }
     })
   }
