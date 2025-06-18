@@ -18,7 +18,6 @@ const logger = {
 
 // Edge Sync State 配置 - 纯 RESTful API + 轮询模式
 const EDGE_SYNC_CONFIG = {
-  serverUrl: process.env.NEXT_PUBLIC_EDGE_PAGE_ACTION_URL || 'http://localhost:8787',
   stateUpdateThrottle: 1000,
   // 轮询配置
   pollingInterval: 2000, // 2秒轮询一次
