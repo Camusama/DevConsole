@@ -1,5 +1,9 @@
-'use client'
-export default function Page() {
+import redis from "@/lib/upstash-redis";
+import { EyeIcon } from "lucide-react";
+export default async function Page() {
+  await redis.incr("view");
+	const view = await redis.get("view") as number
+  
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8">
       <h1 className="text-4xl font-bold mb-8">Dev Console</h1>
@@ -24,6 +28,13 @@ export default function Page() {
             })}
           </span>
         </div>
+      </div>
+      <div className="flex items-center justify-center space-x-2 rounded-xl  from-white to-gray-50 px-6 py-3 text-sm text-gray-600 ring-1 ring-gray-100/80 transition-all  hover:ring-gray-200/80">
+          <EyeIcon className="h-4 w-4 text-gray-500" />
+          <div className="flex items-baseline space-x-1">
+            <span className="hidden sm:inline-block text-gray-500">Page Views:</span>
+            <span className="font-semibold text-gray-800">{view}</span>
+          </div>
       </div>
     </div>
   )

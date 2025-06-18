@@ -51,7 +51,7 @@ export function ChatbotButton({ className }: ChatbotButtonProps) {
           onClick={handleToggle}
           size="lg"
           className={cn(
-            'h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out',
+            'h-14 w-14 rounded-full  transition-all duration-200 ease-in-out',
             'bg-primary hover:bg-primary/90 text-primary-foreground',
             'border-2 border-background',
             isOpen && 'rotate-180'
