@@ -23,6 +23,7 @@ interface FilePreviewProps {
 
 export default function FilePreview({ isOpen, onOpenChange, object }: FilePreviewProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [textContent, setTextContent] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   // Get file name from key
@@ -45,12 +46,13 @@ export default function FilePreview({ isOpen, onOpenChange, object }: FilePrevie
     )
   }
 
-  // Get signed URL for preview
+  // Get signed URL for preview and text content for text files
   useEffect(() => {
-    const getSignedUrl = async () => {
+    const getPreviewData = async () => {
       if (!object || !isOpen) return
 
       setIsLoading(true)
+      setTextContent(null)
 
       try {
         const response = await fetch(`/api/s3/url?key=${encodeURIComponent(object.key)}`)
@@ -58,6 +60,20 @@ export default function FilePreview({ isOpen, onOpenChange, object }: FilePrevie
 
         if (data.url) {
           setPreviewUrl(data.url)
+          
+          // For text files, fetch content directly to ensure proper UTF-8 handling
+          if (object.contentType === 'text/plain' || 
+              object.contentType === 'application/json' ||
+              object.contentType?.startsWith('text/')) {
+            try {
+              const textResponse = await fetch(data.url)
+              const text = await textResponse.text()
+              setTextContent(text)
+            } catch (textError) {
+              console.error('Error fetching text content:', textError)
+              // Fallback to iframe if direct text fetch fails
+            }
+          }
         } else {
           toast.error('获取预览链接失败')
         }
@@ -70,16 +86,29 @@ export default function FilePreview({ isOpen, onOpenChange, object }: FilePrevie
     }
 
     if (isOpen && object) {
-      getSignedUrl()
+      getPreviewData()
     } else {
       setPreviewUrl(null)
+      setTextContent(null)
     }
   }, [isOpen, object])
 
   // Handle download
   const handleDownload = () => {
-    if (previewUrl) {
-      window.open(previewUrl, '_blank')
+    if (previewUrl && object) {
+      // Create a temporary anchor element to trigger download
+      const link = document.createElement('a')
+      link.href = previewUrl
+      link.download = getFileName(object.key)
+      link.target = '_blank'
+      link.rel = 'noopener noreferrer'
+      
+      // Append to body, click, and remove
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      toast.success('文件下载已开始')
     }
   }
 
@@ -138,12 +167,20 @@ export default function FilePreview({ isOpen, onOpenChange, object }: FilePrevie
 
               {(object.contentType === 'text/plain' ||
                 object.contentType === 'application/json' ||
-                object.contentType === 'text/html') && (
-                <iframe
-                  src={previewUrl}
-                  className="w-full h-[500px]"
-                  title={getFileName(object.key)}
-                />
+                object.contentType?.startsWith('text/')) && (
+                textContent ? (
+                  <div className="w-full h-[500px] overflow-auto bg-gray-50 p-4 rounded border">
+                    <pre className="whitespace-pre-wrap text-sm font-mono">
+                      {textContent}
+                    </pre>
+                  </div>
+                ) : (
+                  <iframe
+                    src={previewUrl}
+                    className="w-full h-[500px]"
+                    title={getFileName(object.key)}
+                  />
+                )
               )}
             </div>
           ) : (

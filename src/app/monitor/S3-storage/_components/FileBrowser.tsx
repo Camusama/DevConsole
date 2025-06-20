@@ -186,8 +186,19 @@ export default function FileBrowser({
       const data = await response.json()
 
       if (data.url) {
-        // Open in new tab
-        window.open(data.url, '_blank')
+        // Create a temporary anchor element to trigger download
+        const link = document.createElement('a')
+        link.href = data.url
+        link.download = object.key.split('/').pop() || object.key
+        link.target = '_blank'
+        link.rel = 'noopener noreferrer'
+        
+        // Append to body, click, and remove
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        
+        toast.success('文件下载已开始')
       } else {
         toast.error('获取下载链接失败')
       }

@@ -117,6 +117,9 @@ export async function getS3ObjectUrl(key: string): Promise<{
     const command = new GetObjectCommand({
       Bucket: bucketName,
       Key: key,
+      ResponseContentDisposition: `attachment; filename*=UTF-8''${encodeURIComponent(key.split('/').pop() || key)}`,
+      ResponseContentType: 'application/octet-stream; charset=utf-8',
+      ResponseContentEncoding: 'utf-8',
     })
 
     // URL expires in 1 hour

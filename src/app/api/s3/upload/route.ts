@@ -28,15 +28,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '文件和键是必填项' }, { status: 400 })
     }
 
-    // Convert file to buffer
-    const buffer = Buffer.from(await file.arrayBuffer())
+    // Convert file to buffer with proper encoding handling
+    let buffer: Buffer
+    const fileType = contentType || file.type
+    
+    // For text files, ensure UTF-8 encoding is preserved
+    if (fileType.startsWith('text/') || 
+        fileType === 'application/json' || 
+        fileType === 'application/javascript' || 
+        fileType === 'application/xml' ||
+        fileType.includes('charset')) {
+      // For text files, read as text first to ensure UTF-8 encoding
+      const text = await file.text()
+      buffer = Buffer.from(text, 'utf8')
+    } else {
+      // For binary files, use arrayBuffer directly
+      buffer = Buffer.from(await file.arrayBuffer())
+    }
 
-    // Upload to S3
+    // Upload to S3 with proper encoding for Chinese filenames and content
     const command = new PutObjectCommand({
       Bucket: bucketName,
       Key: key,
       Body: buffer,
-      ContentType: contentType || file.type,
+      ContentType: fileType.includes('charset') ? fileType : `${fileType}; charset=utf-8`,
+      ContentEncoding: fileType.startsWith('text/') ? 'utf-8' : undefined,
+      ContentDisposition: `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+      Metadata: {
+        'original-filename': encodeURIComponent(file.name),
+        'content-encoding': 'utf-8',
+      },
     })
 
     await s3Client.send(command)
