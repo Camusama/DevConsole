@@ -6,7 +6,12 @@ export default async function Page() {
   
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8">
-      <h1 className="text-4xl font-bold mb-8">Dev Console</h1>
+      <div className="text-center space-y-2">
+        <h1 className="text-4xl font-bold">Dev Console</h1>
+        <p className="text-base tracking-[0.3em] uppercase text-muted-foreground font-semibold">
+          by Marquez Yang
+        </p>
+      </div>
       <div className="grid gap-3 text-sm text-muted-foreground w-full max-w-xs">
         <div className="flex justify-between">
           <span className="font-medium">Version:</span>
